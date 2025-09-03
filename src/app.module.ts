@@ -15,6 +15,7 @@ import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PricingModule } from './modules/pricing/pricing.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { RolesGuard } from './common/roles.guard';
 
 @Module({
@@ -32,6 +33,7 @@ import { RolesGuard } from './common/roles.guard';
     AdminModule,
     AuthModule,
     PricingModule,
+    VehiclesModule,
   ],
   providers: [
     {
