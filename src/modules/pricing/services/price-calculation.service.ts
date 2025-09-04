@@ -18,14 +18,17 @@ export interface PriceCalculationRequest {
   durationMinutes?: number;
   bookingDateTime: Date;
   minutesUntilPickup?: number;
+  extras?: string[];
 }
 
 export interface PriceBreakdown {
   baseFare?: number;
-  distanceFare?: number;
-  timeFare?: number;
+  distanceCharge?: number;
+  timeCharge?: number;
   fixedFare?: number;
-  surcharges: SurchargeDetail[];
+  airportFees?: number;
+  extrasTotal?: number;
+  appliedSurcharges: SurchargeDetail[];
   totalSurcharges: number;
   subtotal: number;
   total: number;
@@ -33,6 +36,7 @@ export interface PriceBreakdown {
   pricingMethod: 'fixed' | 'distance_based';
   includedWaitingTime?: number;
   additionalWaitingPrice?: number;
+  isFixedPrice?: boolean;
 }
 
 export interface SurchargeDetail {
@@ -41,8 +45,9 @@ export interface SurchargeDetail {
   type: string;
   application: SurchargeApplication;
   value: number;
-  appliedAmount: number;
+  amount: number;
   currency?: string;
+  reason?: string;
 }
 
 @Injectable()
@@ -108,39 +113,8 @@ export class PriceCalculationService {
     regionId: string,
     request: PriceCalculationRequest
   ): Promise<PriceBreakdown> {
-    const surcharges = await this.surchargeService.findApplicableSurcharges(
-      regionId,
-      request.bookingDateTime,
-      request.minutesUntilPickup
-    );
-
-    const surchargeDetails = this.calculateSurcharges(surcharges, fixedPrice.fixedPrice);
-    const totalSurcharges = surchargeDetails.reduce((sum, s) => sum + s.appliedAmount, 0);
-
-    return {
-      fixedFare: fixedPrice.fixedPrice,
-      surcharges: surchargeDetails,
-      totalSurcharges,
-      subtotal: fixedPrice.fixedPrice,
-      total: fixedPrice.fixedPrice + totalSurcharges,
-      currency: fixedPrice.currency,
-      pricingMethod: 'fixed',
-      includedWaitingTime: fixedPrice.includedWaitingTime,
-      additionalWaitingPrice: fixedPrice.additionalWaitingPrice,
-    };
-  }
-
-  private async calculateWithBasePrice(
-    basePrice: any,
-    regionId: string,
-    request: PriceCalculationRequest
-  ): Promise<PriceBreakdown> {
-    const distanceFare = (request.distanceKm || 0) * basePrice.pricePerKm;
-    const timeFare = (request.durationMinutes || 0) * basePrice.pricePerMinute;
-    const subtotal = Math.max(
-      basePrice.baseFare + distanceFare + timeFare,
-      basePrice.minimumFare
-    );
+    const extrasTotal = this.calculateExtras(request.extras || []);
+    const subtotal = fixedPrice.fixedPrice + extrasTotal;
 
     const surcharges = await this.surchargeService.findApplicableSurcharges(
       regionId,
@@ -149,18 +123,56 @@ export class PriceCalculationService {
     );
 
     const surchargeDetails = this.calculateSurcharges(surcharges, subtotal);
-    const totalSurcharges = surchargeDetails.reduce((sum, s) => sum + s.appliedAmount, 0);
+    const totalSurcharges = surchargeDetails.reduce((sum, s) => sum + s.amount, 0);
+
+    return {
+      fixedFare: fixedPrice.fixedPrice,
+      extrasTotal,
+      appliedSurcharges: surchargeDetails,
+      totalSurcharges,
+      subtotal,
+      total: subtotal + totalSurcharges,
+      currency: fixedPrice.currency,
+      pricingMethod: 'fixed',
+      includedWaitingTime: fixedPrice.includedWaitingTime,
+      additionalWaitingPrice: fixedPrice.additionalWaitingPrice,
+      isFixedPrice: true,
+    };
+  }
+
+  private async calculateWithBasePrice(
+    basePrice: any,
+    regionId: string,
+    request: PriceCalculationRequest
+  ): Promise<PriceBreakdown> {
+    const distanceCharge = (request.distanceKm || 0) * basePrice.pricePerKm;
+    const timeCharge = (request.durationMinutes || 0) * basePrice.pricePerMinute;
+    const extrasTotal = this.calculateExtras(request.extras || []);
+    
+    const fareBeforeMin = basePrice.baseFare + distanceCharge + timeCharge + extrasTotal;
+    const subtotal = Math.max(fareBeforeMin, basePrice.minimumFare + extrasTotal);
+
+    const surcharges = await this.surchargeService.findApplicableSurcharges(
+      regionId,
+      request.bookingDateTime,
+      request.minutesUntilPickup
+    );
+
+    const surchargeDetails = this.calculateSurcharges(surcharges, subtotal);
+    const totalSurcharges = surchargeDetails.reduce((sum, s) => sum + s.amount, 0);
 
     return {
       baseFare: basePrice.baseFare,
-      distanceFare,
-      timeFare,
-      surcharges: surchargeDetails,
+      distanceCharge,
+      timeCharge,
+      extrasTotal,
+      appliedSurcharges: surchargeDetails,
       totalSurcharges,
       subtotal,
       total: subtotal + totalSurcharges,
       currency: basePrice.currency,
       pricingMethod: 'distance_based',
+      isFixedPrice: false,
     };
   }
 
@@ -174,16 +186,44 @@ export class PriceCalculationService {
         appliedAmount = surcharge.value;
       }
 
+      let reason = '';
+      if (surcharge.type === 'cutoff_time') {
+        reason = `Booking made within ${surcharge.cutoffMinutes} minutes of pickup`;
+      } else if (surcharge.type === 'time_left') {
+        reason = `Pickup within next ${surcharge.timeLeftMinutes} minutes`;
+      } else if (surcharge.type === 'datetime') {
+        reason = surcharge.description || 'Time-based surcharge';
+      }
+
       return {
         id: surcharge._id,
         name: surcharge.name,
         type: surcharge.type,
         application: surcharge.application,
         value: surcharge.value,
-        appliedAmount: Math.round(appliedAmount * 100) / 100, // Round to 2 decimal places
+        amount: Math.round(appliedAmount * 100) / 100, // Round to 2 decimal places
         currency: surcharge.currency,
+        reason,
       };
     });
+  }
+
+  private calculateExtras(extras: string[]): number {
+    // Define pricing for common extras
+    const extrasPricing: Record<string, number> = {
+      'child_seat': 10.0,
+      'baby_seat': 12.0,
+      'wheelchair_accessible': 0.0, // Usually no extra charge
+      'extra_luggage': 5.0,
+      'meet_and_greet': 15.0,
+      'priority_pickup': 20.0,
+      'extra_stop': 10.0,
+    };
+
+    return extras.reduce((total, extra) => {
+      const price = extrasPricing[extra.toLowerCase()] || 0;
+      return total + price;
+    }, 0);
   }
 
   async getRegionsForLocation(longitude: number, latitude: number) {
