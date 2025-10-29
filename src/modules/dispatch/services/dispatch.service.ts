@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Driver, DriverDocument } from '../../drivers/schemas/driver.schema';
+import { Driver, DriverDocument, DriverStatus, DriverAvailability } from '../../drivers/schemas/driver.schema';
 import { Booking, BookingDocument, BookingStatus } from '../../bookings/schemas/booking.schema';
 
 export interface AssignDriverRequest {
@@ -143,8 +143,8 @@ export class DispatchService {
       const oldDriver = await this.driverModel.findById(booking.driver.driverId).exec();
       if (oldDriver) {
         oldDriver.currentBookingId = undefined;
-        oldDriver.status = 'online';
-        oldDriver.availability = 'available';
+        oldDriver.status = DriverStatus.ONLINE;
+        oldDriver.availability = DriverAvailability.AVAILABLE;
         await oldDriver.save();
       }
     }

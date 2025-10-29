@@ -51,7 +51,7 @@ export class DriversController {
     status: 404, 
     description: 'Driver not found' 
   })
-  async getProfile(@Request() req): Promise<DriverProfileDto> {
+  async getProfile(@Request() req: any): Promise<DriverProfileDto> {
     const driverId = req.user.driverId; // Assuming JWT contains driverId
     return this.driversService.getDriverProfile(driverId);
   }
@@ -71,7 +71,7 @@ export class DriversController {
     description: 'Driver not found' 
   })
   async updateLocation(
-    @Request() req,
+    @Request() req: any,
     @Body() dto: UpdateDriverLocationDto
   ): Promise<void> {
     const driverId = req.user.driverId;
@@ -97,7 +97,7 @@ export class DriversController {
     description: 'Driver not found' 
   })
   async updateStatus(
-    @Request() req,
+    @Request() req: any,
     @Body() dto: UpdateDriverStatusDto
   ): Promise<void> {
     const driverId = req.user.driverId;
@@ -118,7 +118,7 @@ export class DriversController {
     status: 404, 
     description: 'Driver not found' 
   })
-  async getJobs(@Request() req): Promise<DriverJobsListDto> {
+  async getJobs(@Request() req: any): Promise<DriverJobsListDto> {
     const driverId = req.user.driverId;
     return this.driversService.getDriverJobs(driverId);
   }
@@ -147,7 +147,7 @@ export class DriversController {
     description: 'Driver or booking not found' 
   })
   async acceptJob(
-    @Request() req,
+    @Request() req: any,
     @Param('bookingId') bookingId: string,
     @Body() dto: Omit<AcceptJobDto, 'bookingId'>
   ): Promise<void> {
@@ -179,7 +179,7 @@ export class DriversController {
     description: 'Driver or booking not found' 
   })
   async declineJob(
-    @Request() req,
+    @Request() req: any,
     @Param('bookingId') bookingId: string,
     @Body() dto: Omit<DeclineJobDto, 'bookingId'>
   ): Promise<void> {
@@ -211,7 +211,7 @@ export class DriversController {
     description: 'Driver or booking not found' 
   })
   async updateJobStatus(
-    @Request() req,
+    @Request() req: any,
     @Param('bookingId') bookingId: string,
     @Body() dto: Omit<UpdateJobStatusDto, 'bookingId'>
   ): Promise<void> {

@@ -4,25 +4,38 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
 
+  // Security middleware
   app.use(helmet());
   app.use(compression());
   app.enableCors({ origin: true, credentials: true });
 
-  app.setGlobalPrefix('api/v1', { exclude: ['docs', 'docs-json'] });
+  // Global prefix
+  app.setGlobalPrefix('api/v1', { exclude: ['docs', 'docs-json', 'health'] });
+
+  // Global pipes for validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
       forbidUnknownValues: false,
+      forbidNonWhitelisted: true,
     }),
   );
+
+  // Global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Global response transformer (optional - can be disabled if raw responses are preferred)
+  // app.useGlobalInterceptors(new TransformInterceptor());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('VMP API')
