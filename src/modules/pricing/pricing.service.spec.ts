@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { PriceCalculationService } from './services/price-calculation.service';

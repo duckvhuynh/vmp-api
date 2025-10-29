@@ -1,41 +1,32 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { ApiProperty } from '@nestjs/swagger';
 import { VehicleClass } from '../../pricing/schemas/base-price.schema';
 
 export type QuoteDocument = Quote & Document;
 
 @Schema()
 export class PlaceInfo {
-  @ApiProperty({ enum: ['airport', 'address'] })
   @Prop({ type: String, enum: ['airport', 'address'], required: true })
   type!: 'airport' | 'address';
 
-  @ApiProperty({ required: false })
   @Prop({ type: String })
   airportCode?: string;
 
-  @ApiProperty({ required: false })
   @Prop({ type: String })
   terminal?: string;
 
-  @ApiProperty({ required: false })
   @Prop({ type: String })
   address?: string;
 
-  @ApiProperty({ required: false })
   @Prop({ type: Number })
   latitude?: number;
 
-  @ApiProperty({ required: false })
   @Prop({ type: Number })
   longitude?: number;
 
-  @ApiProperty({ required: false })
   @Prop({ type: Types.ObjectId, ref: 'PriceRegion' })
   regionId?: Types.ObjectId;
 
-  @ApiProperty({ required: false })
   @Prop({ type: String })
   name?: string;
 }
@@ -132,77 +123,57 @@ export class QuotePolicy {
 
 @Schema({ timestamps: true })
 export class Quote {
-  @ApiProperty({ description: 'Unique identifier' })
   _id!: Types.ObjectId;
 
-  @ApiProperty({ description: 'Unique quote identifier' })
   @Prop({ type: String, required: true, unique: true, index: true })
   quoteId!: string;
 
-  @ApiProperty({ type: PlaceInfo })
   @Prop({ type: PlaceInfo, required: true })
   origin!: PlaceInfo;
 
-  @ApiProperty({ type: PlaceInfo })
   @Prop({ type: PlaceInfo, required: true })
   destination!: PlaceInfo;
 
-  @ApiProperty()
   @Prop({ type: Date, required: true })
   pickupAt!: Date;
 
-  @ApiProperty()
   @Prop({ type: Number, required: true, min: 1 })
   passengers!: number;
 
-  @ApiProperty()
   @Prop({ type: Number, required: true, min: 0 })
   luggage!: number;
 
-  @ApiProperty({ type: [String] })
   @Prop({ type: [String], default: [] })
   extras!: string[];
 
-  @ApiProperty({ type: [QuoteVehicleOption] })
   @Prop({ type: [QuoteVehicleOption], required: true })
   vehicleOptions!: QuoteVehicleOption[];
 
-  @ApiProperty({ type: QuotePolicy })
   @Prop({ type: QuotePolicy, required: true })
   policy!: QuotePolicy;
 
-  @ApiProperty({ required: false })
   @Prop({ type: Number })
   estimatedDistance?: number;
 
-  @ApiProperty({ required: false })
   @Prop({ type: Number })
   estimatedDuration?: number;
 
-  @ApiProperty({ required: false })
   @Prop({ type: String })
   originName?: string;
 
-  @ApiProperty({ required: false })
   @Prop({ type: String })
   destinationName?: string;
 
-  @ApiProperty({ description: 'Quote expiration timestamp' })
   @Prop({ type: Date, required: true, index: true })
   expiresAt!: Date;
 
-  @ApiProperty({ description: 'Whether quote has been used for booking' })
   @Prop({ type: Boolean, default: false })
   isUsed!: boolean;
 
-  @ApiProperty({ description: 'Booking ID if quote was used' })
   @Prop({ type: Types.ObjectId, ref: 'Booking' })
   bookingId?: Types.ObjectId;
 
-  @ApiProperty({ description: 'Creation timestamp' })
   createdAt!: Date;
-
-  @ApiProperty({ description: 'Last update timestamp' })
   updatedAt!: Date;
 }
 
