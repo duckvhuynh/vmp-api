@@ -77,7 +77,7 @@
 ssh root@your-vps-ip
 
 # 2. Download và chạy deploy script
-curl -o /tmp/deploy.sh https://raw.githubusercontent.com/yourusername/vmp-api/main/deploy.sh
+curl -o /tmp/deploy.sh https://raw.githubusercontent.com/duckvhuynh/vmp-api/main/deploy.sh
 chmod +x /tmp/deploy.sh
 /tmp/deploy.sh
 
@@ -101,7 +101,7 @@ curl -L "https://github.com/docker/compose/releases/latest/download/docker-compo
 chmod +x /usr/local/bin/docker-compose
 
 # 3. Clone repository
-git clone https://github.com/yourusername/vmp-api.git /opt/vmp-api
+git clone https://github.com/duckvhuynh/vmp-api.git /opt/vmp-api
 cd /opt/vmp-api
 
 # 4. Setup environment

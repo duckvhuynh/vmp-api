@@ -29,7 +29,7 @@ ssh root@your-vps-ip
 mkdir -p /opt/vmp-api && cd /opt/vmp-api
 
 # Download deployment script
-curl -o deploy.sh https://raw.githubusercontent.com/yourusername/vmp-api/main/deploy.sh
+curl -o deploy.sh https://raw.githubusercontent.com/duckvhuynh/vmp-api/main/deploy.sh
 
 # Make it executable
 chmod +x deploy.sh
@@ -97,7 +97,7 @@ apt install git -y
 
 ```bash
 cd /opt
-git clone https://github.com/yourusername/vmp-api.git
+git clone https://github.com/duckvhuynh/vmp-api.git
 cd vmp-api
 ```
 

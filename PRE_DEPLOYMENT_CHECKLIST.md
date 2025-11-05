@@ -59,7 +59,7 @@ git add .
 git commit -m "Production ready deployment"
 
 # Add remote
-git remote add origin https://github.com/yourusername/vmp-api.git
+git remote add origin https://github.com/duckvhuynh/vmp-api.git
 
 # Push
 git push -u origin main
@@ -162,7 +162,7 @@ cp /etc/letsencrypt/live/yourdomain.com/privkey.pem /opt/vmp-api/docker/ssl/key.
 ### Run Deployment Script
 ```bash
 # Download script
-curl -o /tmp/deploy.sh https://raw.githubusercontent.com/yourusername/vmp-api/main/deploy.sh
+curl -o /tmp/deploy.sh https://raw.githubusercontent.com/duckvhuynh/vmp-api/main/deploy.sh
 
 # Make executable (on Linux)
 chmod +x /tmp/deploy.sh

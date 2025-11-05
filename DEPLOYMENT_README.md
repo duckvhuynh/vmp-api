@@ -24,7 +24,7 @@ git add .
 git commit -m "Production ready"
 
 # Add remote (replace with your repo URL)
-git remote add origin https://github.com/yourusername/vmp-api.git
+git remote add origin https://github.com/duckvhuynh/vmp-api.git
 git push -u origin main
 ```
 
@@ -35,7 +35,7 @@ git push -u origin main
 ssh root@your-vps-ip
 
 # Download and run deploy script
-curl -o /tmp/deploy.sh https://raw.githubusercontent.com/yourusername/vmp-api/main/deploy.sh
+curl -o /tmp/deploy.sh https://raw.githubusercontent.com/duckvhuynh/vmp-api/main/deploy.sh
 chmod +x /tmp/deploy.sh
 cd /tmp && ./deploy.sh
 ```
