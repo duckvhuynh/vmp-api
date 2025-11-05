@@ -137,11 +137,17 @@ chmod 644 /opt/vmp-api/docker/ssl/*.pem
 echo -e "${GREEN}Updating nginx configuration...${NC}"
 cd /opt/vmp-api
 
-# Backup nginx config
+# Backup current nginx config
 cp docker/nginx.conf docker/nginx.conf.backup.$(date +%Y%m%d_%H%M%S)
 
-# Update nginx config to enable SSL
-cat > docker/nginx.conf << 'NGINX_EOF'
+# Use the pre-made HTTPS config
+echo -e "${GREEN}Copying HTTPS nginx configuration...${NC}"
+cp docker/nginx-https.conf docker/nginx.conf
+
+# Keep the manual config creation as fallback
+if [ ! -f docker/nginx-https.conf ]; then
+    echo -e "${YELLOW}nginx-https.conf not found, creating manually...${NC}"
+    cat > docker/nginx.conf << 'NGINX_EOF'
 events {
     worker_connections 1024;
 }
@@ -266,6 +272,7 @@ http {
     }
 }
 NGINX_EOF
+fi
 
 # Step 6: Start nginx with SSL
 echo -e "${GREEN}Starting nginx with SSL...${NC}"
