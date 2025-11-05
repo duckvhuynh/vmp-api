@@ -30,7 +30,7 @@ export enum PaymentStatus {
   PARTIALLY_REFUNDED = 'partially_refunded',
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingLocation {
   @Prop({ type: String, required: true })
   type!: 'airport' | 'address';
@@ -57,7 +57,7 @@ export class BookingLocation {
   instructions?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingPassenger {
   @Prop({ type: String, required: true })
   firstName!: string;
@@ -78,7 +78,7 @@ export class BookingPassenger {
   notes?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingFlight {
   @Prop({ type: String, required: true })
   flightNumber!: string;
@@ -102,7 +102,7 @@ export class BookingFlight {
   baggageClaim?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingPricing {
   @Prop({ type: Number, required: true })
   baseFare!: number;
@@ -138,7 +138,7 @@ export class BookingPricing {
   isFixedPrice?: boolean;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingVehicle {
   @Prop({ type: String, required: true })
   vehicleClass!: string;
@@ -156,7 +156,7 @@ export class BookingVehicle {
   pricing!: BookingPricing;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingDriver {
   @Prop({ type: Types.ObjectId, ref: 'Driver', required: true })
   driverId!: Types.ObjectId;
@@ -198,7 +198,7 @@ export class BookingDriver {
   declineReason?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingEvent {
   @Prop({ type: String, required: true })
   event!: string;
@@ -228,7 +228,7 @@ export class BookingEvent {
   driverId?: Types.ObjectId;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class BookingRefund {
   @Prop({ type: Number, required: true })
   amount!: number;

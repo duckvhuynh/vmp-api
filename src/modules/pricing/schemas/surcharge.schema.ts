@@ -15,7 +15,7 @@ export enum SurchargeApplication {
   FIXED_AMOUNT = 'fixed_amount'
 }
 
-@Schema()
+@Schema({ _id: false })
 export class TimeRange {
   @ApiProperty({ description: 'Start time in HH:mm format', example: '22:00' })
   @Prop({ type: String, required: true, match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/ })
@@ -26,7 +26,7 @@ export class TimeRange {
   endTime!: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class DateTimeRange {
   @ApiProperty({ description: 'Start date and time' })
   @Prop({ type: Date, required: true })

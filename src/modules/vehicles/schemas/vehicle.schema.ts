@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type VehicleDocument = Vehicle & Document;
 
-@Schema()
+@Schema({ _id: false })
 export class Translation {
   @Prop({ type: String })
   en!: string;
@@ -15,7 +15,7 @@ export class Translation {
   vi!: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class TranslationField {
   @Prop({ type: Translation, required: true, _id: false })
   translations!: Translation;
@@ -27,7 +27,7 @@ export class TranslationField {
   defaultLanguage!: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class CapacitySpecs {
   @Prop({ required: true, min: 1 })
   maxPassengers!: number;

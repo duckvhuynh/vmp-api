@@ -4,7 +4,7 @@ import { VehicleClass } from '../../pricing/schemas/base-price.schema';
 
 export type QuoteDocument = Quote & Document;
 
-@Schema()
+@Schema({ _id: false })
 export class PlaceInfo {
   @Prop({ type: String, enum: ['airport', 'address'], required: true })
   type!: 'airport' | 'address';
@@ -31,7 +31,7 @@ export class PlaceInfo {
   name?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class QuotePriceBreakdown {
   @Prop({ type: Number, required: true })
   baseFare!: number;
@@ -58,7 +58,7 @@ export class QuotePriceBreakdown {
   currency!: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class QuoteSurchargeDetail {
   @Prop({ type: String, required: true })
   name!: string;
@@ -76,7 +76,7 @@ export class QuoteSurchargeDetail {
   reason?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class QuoteVehicleOption {
   @Prop({ type: String, enum: VehicleClass, required: true })
   vehicleClass!: VehicleClass;
@@ -106,7 +106,7 @@ export class QuoteVehicleOption {
   isFixedPrice?: boolean;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class QuotePolicy {
   @Prop({ type: String, required: true })
   cancellation!: string;
