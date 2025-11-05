@@ -93,32 +93,56 @@ print_status "Creating required directories..."
 mkdir -p docker/ssl
 mkdir -p logs
 
-# Step 6: Stop existing containers
-if [ "$(docker ps -q -f name=vmp-)" ]; then
-    print_status "Stopping existing containers..."
-    docker-compose -f docker-compose.prod.yml down
+# Step 6: Load environment variables
+print_status "Loading environment variables from .env.production..."
+set -a
+source .env.production
+set +a
+
+# Verify critical variables are set
+if [ -z "$JWT_SECRET" ] || [ -z "$MONGO_ROOT_PASSWORD" ] || [ -z "$REDIS_PASSWORD" ]; then
+    print_error "Critical environment variables are missing!"
+    print_error "Please check .env.production file."
+    exit 1
 fi
 
-# Step 7: Build and start containers
+print_status "Environment variables loaded successfully"
+
+# Step 7: Stop existing containers
+if [ "$(docker ps -q -f name=vmp-)" ]; then
+    print_status "Stopping existing containers..."
+    docker-compose -f docker-compose.prod.yml down -v
+fi
+
+# Step 8: Build and start containers
 print_status "Building Docker images..."
 docker-compose -f docker-compose.prod.yml build --no-cache
 
-print_status "Starting containers..."
+print_status "Starting containers with environment variables..."
 docker-compose -f docker-compose.prod.yml up -d
 
-# Step 8: Wait for services to be ready
+# Step 9: Wait for services to be ready
 print_status "Waiting for services to be ready..."
-sleep 10
+sleep 15
 
-# Step 9: Check container status
+# Step 10: Check container status
 print_status "Checking container status..."
 docker-compose -f docker-compose.prod.yml ps
 
-# Step 10: Display logs
-print_status "Recent API logs:"
-docker-compose -f docker-compose.prod.yml logs --tail=20 api
+# Step 11: Check MongoDB status
+print_status "Checking MongoDB status..."
+sleep 5
+if docker exec vmp-mongo-prod mongosh --quiet --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
+    print_status "MongoDB is running ✓"
+else
+    print_warning "MongoDB check failed, but continuing..."
+fi
 
-# Step 11: Health check
+# Step 12: Display logs
+print_status "Recent logs:"
+docker-compose -f docker-compose.prod.yml logs --tail=30
+
+# Step 13: Health check
 print_status "Running health check..."
 sleep 5
 if curl -f http://localhost:3000/health > /dev/null 2>&1; then
@@ -129,7 +153,7 @@ else
     exit 1
 fi
 
-# Step 12: Setup firewall (optional)
+# Step 14: Setup firewall (optional)
 if command -v ufw &> /dev/null; then
     print_status "Configuring firewall..."
     ufw allow 80/tcp
