@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_DIR="/opt/vmp-api"
-REPO_URL="https://github.com/yourusername/vmp-api.git"
+REPO_URL="https://github.com/duckvhuynh/vmp-api.git"
 BRANCH="main"
 
 # Function to print colored messages
