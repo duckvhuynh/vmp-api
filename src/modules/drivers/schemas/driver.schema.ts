@@ -26,7 +26,7 @@ export enum VehicleType {
   LUXURY = 'luxury',
 }
 
-@Schema()
+@Schema({ _id: false })
 export class DriverLocation {
   @Prop({ type: Number, required: true })
   latitude!: number;
@@ -50,7 +50,7 @@ export class DriverLocation {
   speed?: number;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class DriverVehicle {
   @Prop({ type: String, required: true })
   make!: string;
@@ -83,7 +83,7 @@ export class DriverVehicle {
   imageUrl?: string;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class DriverDocumentInfo {
   @Prop({ type: String, required: true })
   type!: string;
@@ -101,7 +101,7 @@ export class DriverDocumentInfo {
   isVerified!: boolean;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class DriverStats {
   @Prop({ type: Number, default: 0 })
   totalTrips!: number;
