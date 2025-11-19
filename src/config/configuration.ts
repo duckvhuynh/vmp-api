@@ -1,14 +1,21 @@
 export default () => {
   // Support both MONGODB_URI and MONGO_URI
-  const mongodbUri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/vmp';
+  let mongodbUri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/vmp';
+  
+  // Fix double @@ issue in MongoDB URI
+  if (mongodbUri.includes('@@')) {
+    mongodbUri = mongodbUri.replace('@@', '@');
+  }
 
   // Build REDIS_URL from components if REDIS_URL is not provided
   let redisUrl = process.env.REDIS_URL;
   if (!redisUrl && process.env.REDIS_HOST) {
     const password = process.env.REDIS_PASSWORD ? `:${process.env.REDIS_PASSWORD}@` : '';
-    // Parse port, defaulting to 6379 if invalid
+    // Parse port, extracting numeric part from corrupted strings
     const portStr = process.env.REDIS_PORT || '6379';
-    const port = parseInt(portStr, 10) || 6379;
+    // Extract first numeric sequence (handles corrupted values like "63791380askjd...")
+    const portMatch = portStr.toString().match(/^(\d+)/);
+    const port = portMatch ? parseInt(portMatch[1], 10) : 6379;
     redisUrl = `redis://${password}${process.env.REDIS_HOST}:${port}`;
   }
   redisUrl = redisUrl || 'redis://localhost:6379';
