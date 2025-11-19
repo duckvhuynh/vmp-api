@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -21,7 +21,12 @@ import { RolesGuard } from './common/roles.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/vmp'),
+    MongooseModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get<string>('mongodbUri') || 'mongodb://localhost:27017/vmp',
+      }),
+      inject: [ConfigService],
+    }),
     ThrottlerModule.forRoot([{ ttl: 60, limit: 100 }]),
     HealthModule,
     QuotesModule,
