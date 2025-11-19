@@ -21,8 +21,8 @@ COPY tsconfig*.json nest-cli.json ./
 # Copy source code
 COPY src ./src
 
-# Build the application
-RUN npm run build
+# Build the application using npx to access nest CLI from node_modules
+RUN npx nest build
 
 # Remove dev dependencies after build
 RUN npm prune --production
