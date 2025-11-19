@@ -22,9 +22,19 @@ import { RolesGuard } from './common/roles.guard';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
     MongooseModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('mongodbUri') || 'mongodb://localhost:27017/vmp',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const uri = configService.get<string>('mongodbUri') || 'mongodb://localhost:27017/vmp';
+        // eslint-disable-next-line no-console
+        console.log('Connecting to MongoDB:', uri.replace(/:[^:@]+@/, ':****@'));
+        return {
+          uri,
+          retryWrites: true,
+          retryReads: true,
+          // Don't fail on connection errors - let app start and retry
+          serverSelectionTimeoutMS: 5000,
+          socketTimeoutMS: 45000,
+        };
+      },
       inject: [ConfigService],
     }),
     ThrottlerModule.forRoot([{ ttl: 60, limit: 100 }]),
