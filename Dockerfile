@@ -21,8 +21,11 @@ COPY tsconfig*.json nest-cli.json ./
 # Copy source code
 COPY src ./src
 
-# Build the application using the nest CLI directly from node_modules
-RUN ./node_modules/.bin/nest build
+# Debug: List node_modules/.bin to see what's installed
+RUN ls -la node_modules/.bin/ || echo "node_modules/.bin not found"
+
+# Build the application - npm run will use the local node_modules/.bin in PATH
+RUN npm run build
 
 # Remove dev dependencies after build
 RUN npm prune --production
