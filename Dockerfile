@@ -3,6 +3,10 @@
 # ============================================
 FROM node:20-alpine AS builder
 
+# Set NODE_ENV=development to ensure devDependencies are installed
+# (Coolify passes NODE_ENV=production as build arg, which skips devDependencies)
+ENV NODE_ENV=development
+
 # Install build dependencies (for native modules like argon2)
 RUN apk add --no-cache python3 make g++
 
@@ -12,6 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Install dependencies (including dev dependencies for build)
+# Force install devDependencies by setting NODE_ENV=development
 RUN npm ci --prefer-offline --no-audit --no-fund || \
     npm install --no-audit --no-fund
 
@@ -21,10 +26,7 @@ COPY tsconfig*.json nest-cli.json ./
 # Copy source code
 COPY src ./src
 
-# Debug: List node_modules/.bin to see what's installed
-RUN ls -la node_modules/.bin/ || echo "node_modules/.bin not found"
-
-# Build the application - npm run will use the local node_modules/.bin in PATH
+# Build the application
 RUN npm run build
 
 # Remove dev dependencies after build
