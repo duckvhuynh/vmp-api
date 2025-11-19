@@ -158,13 +158,46 @@ npm run test:cov
 
 ## Production Deployment
 
-1. Build the application: `npm run build`
-2. Set production environment variables
-3. Ensure MongoDB and Redis are accessible
-4. Run with: `npm run start:prod`
-5. Use a process manager like PM2 or run in Docker
+### 🚀 Recommended: Deploy with Coolify (5 minutes)
 
-## Docker
+The fastest and easiest way to deploy VMP API to production:
+
+```bash
+# 1. Create services in Coolify (MongoDB + Redis)
+# 2. Deploy from GitHub (this repository)
+# 3. Set environment variables
+# 4. Click "Deploy"
+```
+
+**📚 Complete Guide:** See [COOLIFY_QUICK_START.md](./COOLIFY_QUICK_START.md)
+
+**Features:**
+- ✅ Zero-downtime deployments
+- ✅ Automatic SSL/HTTPS
+- ✅ Auto-deploy on Git push
+- ✅ Built-in monitoring & logs
+- ✅ One-click scaling
+
+### 🖥️ Manual VPS Deployment
+
+For full control, deploy manually to any VPS:
+
+```bash
+# 1. Clone repository on VPS
+git clone https://github.com/duckvhuynh/vmp-api.git
+cd vmp-api
+
+# 2. Create .env.production
+cp .env.production.example .env.production
+nano .env.production
+
+# 3. Deploy with Docker Compose
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**📚 Complete Guide:** See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
+
+### 🐳 Local Docker Development
 
 ```bash
 # Build and run with docker-compose
@@ -176,6 +209,18 @@ docker-compose logs -f
 # Stop services
 docker-compose down
 ```
+
+### 📊 Deployment Comparison
+
+| Feature | Coolify | Manual VPS |
+|---------|---------|-----------|
+| **Setup Time** | 5 min | 30 min |
+| **Auto-deployment** | ✅ Yes | ❌ Manual |
+| **SSL Setup** | ✅ Automatic | 🔧 Manual |
+| **Monitoring** | ✅ Built-in | 🔧 Setup required |
+| **Zero Downtime** | ✅ Yes | ❌ Brief downtime |
+
+**📚 Full Comparison:** See [DEPLOYMENT_COMPARISON.md](./DEPLOYMENT_COMPARISON.md)
 
 ## Contributing
 
