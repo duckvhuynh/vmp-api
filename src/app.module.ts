@@ -30,9 +30,13 @@ import { RolesGuard } from './common/roles.guard';
           uri,
           retryWrites: true,
           retryReads: true,
-          // Don't fail on connection errors - let app start and retry
-          serverSelectionTimeoutMS: 5000,
+          // Increase timeout to allow MongoDB to start (especially in docker-compose)
+          serverSelectionTimeoutMS: 30000, // 30 seconds
           socketTimeoutMS: 45000,
+          connectTimeoutMS: 30000, // 30 seconds
+          // Retry connection attempts
+          maxPoolSize: 10,
+          minPoolSize: 2,
         };
       },
       inject: [ConfigService],

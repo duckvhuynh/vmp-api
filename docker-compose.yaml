@@ -1,5 +1,6 @@
 # Docker Compose for Coolify Deployment
 # Coolify will automatically detect and use this file
+# Note: Coolify handles networking automatically - services communicate via service names
 
 services:
   # API Application
@@ -14,8 +15,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
-      - MONGO_URI=${MONGO_URI:-mongodb://admin:0814940664asdUZ@@vmp-mongo:27017/vmp_production}
-      - REDIS_HOST=${REDIS_HOST:-vmp-redis}
+      # Use service name 'mongo' for DNS resolution within docker-compose network
+      - MONGO_URI=${MONGO_URI:-mongodb://admin:0814940664asdUZ@@mongo:27017/vmp_production}
+      - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-0814940664asdUZ@}
       - JWT_SECRET=${JWT_SECRET:-change-me}
@@ -33,14 +35,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    networks:
-      - vmp-network
+    # Let Coolify handle networking - don't specify custom network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   # MongoDB Database
   mongo:
@@ -54,14 +55,13 @@ services:
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
-    networks:
-      - vmp-network
+    # Let Coolify handle networking
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 40s
     command: ["--auth"]
 
   # Redis Cache
@@ -72,17 +72,12 @@ services:
     command: redis-server --requirepass 0814940664asdUZ@ --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
-    networks:
-      - vmp-network
+    # Let Coolify handle networking
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "0814940664asdUZ@", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
-
-networks:
-  vmp-network:
-    driver: bridge
 
 volumes:
   mongo-data:
