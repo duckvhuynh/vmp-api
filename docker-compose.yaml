@@ -15,9 +15,11 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
-      # Use service name 'mongo' for DNS resolution within docker-compose network
-      - MONGO_URI=${MONGO_URI:-mongodb://admin:0814940664asdUZ@@mongo:27017/vmp_production}
-      - REDIS_HOST=${REDIS_HOST:-redis}
+      # IMPORTANT: Always use service name 'mongo' (not container name 'vmp-mongo')
+      # Remove MONGO_URI from Coolify environment variables if set, as it may use container name
+      - MONGO_URI=mongodb://admin:0814940664asdUZ@@mongo:27017/vmp_production
+      # IMPORTANT: Always use service name 'redis' (not container name 'vmp-redis')
+      - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-0814940664asdUZ@}
       - JWT_SECRET=${JWT_SECRET:-change-me}
