@@ -16,9 +16,10 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
       # IMPORTANT: Always use service name 'mongo' (not container name 'vmp-mongo')
+      # Password contains @ which must be URL-encoded as %40
       # authSource=admin tells MongoDB to authenticate against admin database (where root user exists)
       # Remove MONGO_URI from Coolify environment variables if set, as it may use container name
-      - MONGO_URI=mongodb://admin:0814940664asdUZ@@mongo:27017/vmp_production?authSource=admin
+      - MONGO_URI=mongodb://admin:0814940664asdUZ%40@mongo:27017/vmp_production?authSource=admin
       # IMPORTANT: Always use service name 'redis' (not container name 'vmp-redis')
       - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
@@ -58,6 +59,7 @@ services:
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
+      - ./docker/mongo-init-admin.js:/docker-entrypoint-initdb.d/mongo-init-admin.js:ro
     # Let Coolify handle networking
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
