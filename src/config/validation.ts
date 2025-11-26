@@ -15,4 +15,10 @@ export const validationSchema = Joi.object({
   REDIS_PORT: Joi.alternatives().try(Joi.number(), Joi.string()).allow(''),
   JWT_SECRET: Joi.string().min(16).required(),
   CORS_ORIGINS: Joi.string().default('*'),
+  // Admin seed configuration (optional)
+  SEED_ADMIN: Joi.string().valid('true', 'false').allow(''),
+  ADMIN_EMAIL: Joi.string().email().allow(''),
+  ADMIN_PASSWORD: Joi.string().min(8).allow(''),
+  ADMIN_NAME: Joi.string().allow(''),
+  ADMIN_PHONE: Joi.string().allow(''),
 }).or('MONGODB_URI', 'MONGO_URI').or('REDIS_URL', 'REDIS_HOST');

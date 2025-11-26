@@ -27,5 +27,13 @@ export default () => {
     redisUrl,
     jwtSecret: process.env.JWT_SECRET || 'change-me',
     corsOrigins: (process.env.CORS_ORIGINS || '*').split(',').map((s) => s.trim()),
+    // Admin seed configuration
+    adminSeed: {
+      enabled: process.env.SEED_ADMIN === 'true',
+      email: process.env.ADMIN_EMAIL,
+      password: process.env.ADMIN_PASSWORD,
+      name: process.env.ADMIN_NAME || 'Admin User',
+      phone: process.env.ADMIN_PHONE,
+    },
   };
 };

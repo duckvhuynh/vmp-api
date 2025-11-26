@@ -6,6 +6,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { SeedService } from './modules/seed/seed.service';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   try {
@@ -49,6 +51,26 @@ async function bootstrap() {
 
     // Global response transformer (optional - can be disabled if raw responses are preferred)
     // app.useGlobalInterceptors(new TransformInterceptor());
+
+    // Optional: Seed admin user on startup if configured
+    const configService = app.get(ConfigService);
+    const adminSeedConfig = configService.get('adminSeed');
+    if (adminSeedConfig?.enabled && adminSeedConfig?.email && adminSeedConfig?.password) {
+      try {
+        const seedService = app.get(SeedService);
+        await seedService.seedAdmin({
+          email: adminSeedConfig.email,
+          password: adminSeedConfig.password,
+          name: adminSeedConfig.name || 'Admin User',
+          phone: adminSeedConfig.phone,
+        });
+        // eslint-disable-next-line no-console
+        console.log('✅ Admin user seeded successfully on startup');
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn('⚠️ Failed to seed admin user on startup:', error instanceof Error ? error.message : error);
+      }
+    }
 
     const swaggerConfig = new DocumentBuilder()
       .setTitle('VMP API')

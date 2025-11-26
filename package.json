@@ -13,7 +13,8 @@
     "start:prod": "node dist/main.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "seed:admin": "ts-node -r tsconfig-paths/register src/scripts/seed-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.9",

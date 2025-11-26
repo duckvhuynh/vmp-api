@@ -92,7 +92,16 @@ MONGODB_URI=mongodb://localhost:27017/vmp
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-super-secret-key-minimum-16-characters
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+
+# Optional: Admin user seeding
+SEED_ADMIN=true
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=SecurePass123
+ADMIN_NAME=Admin User
+ADMIN_PHONE=+23012345678
 ```
+
+**Note:** See [SEED_ADMIN_GUIDE.md](./SEED_ADMIN_GUIDE.md) for details on seeding admin accounts.
 
 ## Available Scripts
 
@@ -105,6 +114,7 @@ npm run format       # Format code with Prettier
 npm run test         # Run tests
 npm run test:watch   # Run tests in watch mode
 npm run test:cov     # Generate test coverage
+npm run seed:admin   # Seed admin user account (interactive)
 ```
 
 ## User Roles
