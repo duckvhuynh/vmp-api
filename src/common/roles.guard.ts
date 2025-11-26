@@ -12,12 +12,19 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+    
+    // If no roles are required, allow access (this guard doesn't enforce authentication)
     if (!required || required.length === 0) return true;
+    
     const req = context.switchToHttp().getRequest();
     const user = req.user as { roles?: Role[] | string[] | string } | undefined;
     
+    // If roles are required but user is not authenticated, deny access
+    // Note: This assumes JwtAuthGuard runs before RolesGuard
     if (!user) {
-      this.logger.warn('No user found in request');
+      this.logger.warn(
+        `No user found in request. Required roles: ${required.join(', ')}. Make sure JwtAuthGuard is applied.`,
+      );
       return false;
     }
 
