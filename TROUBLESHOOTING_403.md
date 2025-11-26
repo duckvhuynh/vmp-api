@@ -1,159 +1,248 @@
 # Troubleshooting 403 Forbidden Errors
 
-## Common Cause: JWT Token Doesn't Include Admin Role
+## Problem
 
-If you're getting a `403 Forbidden` error even though you logged in as admin, the most likely cause is that **your JWT token was issued before you were assigned the admin role**.
+You're getting `403 Forbidden` errors when accessing endpoints like:
+- `/api/v1/price-regions`
+- `/api/v1/surcharges`
+- `/api/v1/vehicles`
+- `/api/v1/base-prices`
+- `/api/v1/fixed-prices`
 
-### Why This Happens
+## Root Causes
 
-1. You logged in with a regular user account (e.g., `passenger` role)
-2. Later, your account was assigned the `admin` role in the database
-3. Your JWT token still contains the old roles (`['passenger']`)
-4. The API checks your token's roles, not your database roles
-5. Since your token doesn't have `admin`, you get 403 Forbidden
+### 1. Missing Authentication Token
 
-### Solution: Log In Again
+**Symptoms:**
+- 403 Forbidden error
+- No `Authorization` header in request
 
-**You need to log in again after being assigned the admin role** to get a new JWT token with the updated roles.
+**Solution:**
+You must include a JWT token in the `Authorization` header:
 
 ```bash
-# 1. Log in again with your admin credentials
-POST /api/v1/auth/login
-{
-  "email": "admin@example.com",
-  "password": "your-password"
-}
-
-# 2. Use the new accessToken in subsequent requests
-Authorization: Bearer <new-access-token>
+# Example with curl
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  https://api.visitmauritiusparadise.com/api/v1/price-regions
 ```
 
-### Verify Your Roles
+### 2. Invalid or Expired Token
 
-#### Option 1: Check Your Current User Profile
+**Symptoms:**
+- 401 Unauthorized (if token is invalid)
+- 403 Forbidden (if token is valid but user lacks roles)
 
+**Solution:**
+1. Login to get a new token:
 ```bash
-GET /api/v1/users/me
-Authorization: Bearer <your-token>
-```
-
-This will show your current roles from the database.
-
-#### Option 2: Decode Your JWT Token
-
-You can decode your JWT token to see what roles it contains:
-
-1. Go to https://jwt.io
-2. Paste your access token
-3. Check the `roles` field in the payload
-
-If it shows `["passenger"]` instead of `["admin"]`, you need to log in again.
-
-### Debugging Steps
-
-1. **Check if you're actually an admin in the database:**
-   ```bash
-   # Login and check your profile
-   GET /api/v1/users/me
-   ```
-   Look for `"roles": ["admin"]` in the response.
-
-2. **Check what roles are in your JWT token:**
-   - Decode your token at jwt.io
-   - Look at the `roles` field in the payload
-   - If it doesn't include `"admin"`, log in again
-
-3. **Verify the endpoint requires admin:**
-   - Check the controller - it should have `@Roles('admin', 'dispatcher')`
-   - The endpoint `/api/v1/price-regions` requires `admin` or `dispatcher` role
-
-### Common Scenarios
-
-#### Scenario 1: Account Created Before Admin Role Assignment
-
-```bash
-# Step 1: Account created (default: passenger role)
-POST /api/v1/auth/register
-{ "email": "user@example.com", "password": "pass", ... }
-# Token has: ["passenger"]
-
-# Step 2: Admin assigns admin role via API or database
-# Database now has: roles: ["admin"]
-# But token still has: ["passenger"]
-
-# Step 3: Try to access admin endpoint
-GET /api/v1/price-regions
-# ❌ 403 Forbidden - token doesn't have admin role
-
-# Step 4: Solution - Log in again
-POST /api/v1/auth/login
-{ "email": "user@example.com", "password": "pass" }
-# New token has: ["admin"]
-
-# Step 5: Now it works
-GET /api/v1/price-regions
-# ✅ 200 OK
-```
-
-#### Scenario 2: Using Seed Script
-
-If you used the seed script to create an admin account:
-
-```bash
-# 1. Seed admin account
-npm run seed:admin
-
-# 2. Log in with the seeded admin credentials
-POST /api/v1/auth/login
-{
-  "email": "admin@example.com",
-  "password": "your-seeded-password"
-}
-
-# 3. Use the token from login response
-Authorization: Bearer <access-token-from-login>
-```
-
-### Quick Fix Script
-
-If you want to quickly test if your token has the right roles:
-
-```bash
-# Decode your token and check roles
-# Replace YOUR_TOKEN with your actual token
-echo "YOUR_TOKEN" | cut -d. -f2 | base64 -d | jq .roles
-```
-
-### Still Having Issues?
-
-1. **Check server logs** - The improved RolesGuard now logs warnings when roles don't match
-2. **Verify database** - Make sure your user document has `roles: ["admin"]`
-3. **Check token expiration** - Tokens expire after 15 minutes, you may need to refresh
-4. **Verify endpoint** - Make sure the endpoint actually requires admin role
-
-### Testing Your Setup
-
-```bash
-# 1. Create/seed admin account
-npm run seed:admin
-
-# 2. Log in
 curl -X POST https://api.visitmauritiusparadise.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"your-password"}'
-
-# 3. Save the accessToken from response
-
-# 4. Test admin endpoint
-curl -X GET https://api.visitmauritiusparadise.com/api/v1/price-regions \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+  -d '{
+    "email": "your-email@example.com",
+    "password": "your-password"
+  }'
 ```
 
-### Prevention
+2. Use the `accessToken` from the response in your requests.
 
-To avoid this issue in the future:
+### 3. User Doesn't Have Required Roles
 
-1. **Assign roles before first login** - If possible, assign admin role when creating the account
-2. **Use refresh token carefully** - Refresh token also uses old roles, so log in again after role changes
-3. **Monitor token expiration** - Tokens expire after 15 minutes, refresh or log in again
+**Symptoms:**
+- 403 Forbidden with message: "Access denied. Required roles: admin, dispatcher"
+
+**Solution:**
+These endpoints require `admin` or `dispatcher` roles. Your user account needs to have one of these roles assigned.
+
+**Check your user roles:**
+```bash
+# Get your user profile (requires authentication)
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  https://api.visitmauritiusparadise.com/api/v1/users/me
+```
+
+**If you need admin access:**
+1. Use the seed script to create an admin account:
+```bash
+npm run seed:admin
+```
+
+2. Or have an existing admin update your roles via:
+```bash
+# Admin only endpoint
+PATCH /api/v1/users/:id
+{
+  "roles": ["admin"]
+}
+```
+
+## Required Roles by Endpoint
+
+| Endpoint | Required Roles |
+|----------|----------------|
+| `GET /price-regions` | `admin`, `dispatcher` |
+| `GET /surcharges` | `admin`, `dispatcher` |
+| `GET /vehicles` | `admin`, `dispatcher` |
+| `GET /base-prices` | `admin`, `dispatcher` |
+| `GET /fixed-prices` | `admin`, `dispatcher` |
+| `GET /admin/dashboard` | `admin` |
+| `GET /users` | `admin` |
+
+## Step-by-Step Fix
+
+### Step 1: Create Admin Account
+
+```bash
+# Run the seed script
+npm run seed:admin
+
+# Or use environment variables
+ADMIN_EMAIL=admin@example.com \
+ADMIN_PASSWORD=SecurePass123 \
+npm run seed:admin
+```
+
+### Step 2: Login as Admin
+
+```bash
+curl -X POST https://api.visitmauritiusparadise.com/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "SecurePass123"
+  }'
+```
+
+**Response:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Step 3: Use the Token
+
+```bash
+# Copy the accessToken from Step 2
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+# Now make authenticated requests
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.visitmauritiusparadise.com/api/v1/price-regions
+```
+
+## Testing Authentication
+
+### Test 1: Check if you're authenticated
+
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://api.visitmauritiusparadise.com/api/v1/users/me
+```
+
+**Expected:** Your user profile with roles array
+
+### Test 2: Check your roles
+
+Look at the `roles` field in the response:
+```json
+{
+  "_id": "...",
+  "name": "...",
+  "email": "...",
+  "roles": ["admin"],  // ← Check this
+  ...
+}
+```
+
+### Test 3: Try accessing protected endpoint
+
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://api.visitmauritiusparadise.com/api/v1/price-regions
+```
+
+**If you get 403:**
+- Your token is valid (otherwise you'd get 401)
+- But your user doesn't have the required roles
+
+## Common Mistakes
+
+### ❌ Wrong: Missing Authorization Header
+```bash
+curl https://api.visitmauritiusparadise.com/api/v1/price-regions
+```
+
+### ✅ Correct: With Authorization Header
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://api.visitmauritiusparadise.com/api/v1/price-regions
+```
+
+### ❌ Wrong: Wrong Header Format
+```bash
+curl -H "Authorization: YOUR_TOKEN"  # Missing "Bearer "
+```
+
+### ✅ Correct: Proper Bearer Token Format
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### ❌ Wrong: Using Refresh Token Instead of Access Token
+```bash
+# Don't use refreshToken for API calls
+curl -H "Authorization: Bearer REFRESH_TOKEN" ...
+```
+
+### ✅ Correct: Use Access Token
+```bash
+# Use accessToken from login response
+curl -H "Authorization: Bearer ACCESS_TOKEN" ...
+```
+
+## Browser/JavaScript Example
+
+```javascript
+// Login first
+const loginResponse = await fetch('https://api.visitmauritiusparadise.com/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'admin@example.com',
+    password: 'SecurePass123'
+  })
+});
+
+const { accessToken } = await loginResponse.json();
+
+// Use token for authenticated requests
+const response = await fetch('https://api.visitmauritiusparadise.com/api/v1/price-regions', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  }
+});
+
+const data = await response.json();
+```
+
+## Still Having Issues?
+
+1. **Check token expiration:** Access tokens expire after 15 minutes. Use `/auth/refresh` to get a new token.
+
+2. **Verify user roles:** Make sure your user has `admin` or `dispatcher` role assigned.
+
+3. **Check server logs:** Look for authentication/authorization errors in server logs.
+
+4. **Test with Swagger UI:** Visit `https://api.visitmauritiusparadise.com/docs` and use the "Authorize" button to test endpoints interactively.
+
+## Updated Error Messages
+
+After the fix, you'll get more helpful error messages:
+
+- **No token:** `"Authentication required"`
+- **No roles:** `"User has no assigned roles"`
+- **Wrong roles:** `"Access denied. Required roles: admin, dispatcher. User roles: passenger"`
+
+These messages will help you identify the exact issue.
 

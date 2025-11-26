@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { Roles } from '../../common/roles.decorator';
@@ -114,33 +114,6 @@ export class AdminController {
     return { 
       ok: true,
       timestamp: new Date().toISOString()
-    };
-  }
-
-  @Get('debug/user')
-  @ApiOperation({ 
-    summary: 'Debug current user info',
-    description: 'Get current user information from JWT token for debugging'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User debug information',
-    schema: { 
-      example: { 
-        userId: '507f1f77bcf86cd799439011',
-        roles: ['admin'],
-        hasAdminRole: true
-      } 
-    }
-  })
-  debugUser(@Req() req: any) {
-    const user = req.user || {};
-    return {
-      userId: user.userId,
-      roles: user.roles || [],
-      hasAdminRole: Array.isArray(user.roles) && user.roles.includes('admin'),
-      hasDispatcherRole: Array.isArray(user.roles) && user.roles.includes('dispatcher'),
-      userObject: user,
     };
   }
 }
