@@ -12,6 +12,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
   validate(payload: any) {
-    return { userId: payload.sub, roles: payload.roles };
+    // Ensure roles is always an array
+    let roles: string[] = [];
+    if (payload.roles) {
+      if (Array.isArray(payload.roles)) {
+        roles = payload.roles;
+      } else if (typeof payload.roles === 'string') {
+        roles = [payload.roles];
+      }
+    }
+    
+    return { userId: payload.sub, roles };
   }
 }
