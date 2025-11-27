@@ -499,6 +499,296 @@ export const apiClient = {
 
 ---
 
+## Admin Bookings Management
+
+Full CRUD operations for admin/dispatcher to manage all bookings.
+
+### Get All Bookings (Admin)
+
+**GET** `/admin/bookings`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+- `page` (number, optional): Page number (default: 1)
+- `limit` (number, optional): Items per page (default: 10, max: 100)
+- `search` (string, optional): Search by booking ID, passenger name, phone
+- `status` (string, optional): Filter by status
+- `driverId` (string, optional): Filter by assigned driver
+- `userId` (string, optional): Filter by user
+- `vehicleClass` (string, optional): Filter by vehicle class
+- `fromDate` (string, optional): Filter bookings from date (ISO string)
+- `toDate` (string, optional): Filter bookings until date (ISO string)
+- `sortBy` (string, optional): Sort field (default: "createdAt")
+- `sortOrder` (string, optional): "asc" or "desc" (default: "desc")
+
+**Response:** `200 OK`
+```json
+{
+  "bookings": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "bookingId": "BK-20251029-ABC123",
+      "status": "confirmed",
+      "passengerName": "John Doe",
+      "passengerPhone": "+971501234567",
+      "originName": "Dubai Airport",
+      "destinationName": "Downtown Dubai",
+      "pickupAt": "2025-10-29T10:00:00.000Z",
+      "vehicleClass": "ECONOMY",
+      "total": 75.50,
+      "currency": "AED",
+      "createdAt": "2025-10-29T09:00:00.000Z"
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "limit": 10,
+  "totalPages": 10
+}
+```
+
+### Get Booking Statistics
+
+**GET** `/admin/bookings/stats`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+- `fromDate` (string, optional): Start date (ISO string)
+- `toDate` (string, optional): End date (ISO string)
+
+**Response:** `200 OK`
+```json
+{
+  "totalBookings": 150,
+  "pendingBookings": 25,
+  "confirmedBookings": 45,
+  "activeBookings": 15,
+  "completedBookings": 60,
+  "cancelledBookings": 5,
+  "totalRevenue": 12500.75,
+  "currency": "AED",
+  "averageBookingValue": 83.33,
+  "byStatus": {
+    "pending_payment": 25,
+    "confirmed": 45,
+    "completed": 60
+  },
+  "byVehicleClass": {
+    "ECONOMY": 50,
+    "COMFORT": 30,
+    "PREMIUM": 20
+  }
+}
+```
+
+### Get Upcoming Bookings
+
+**GET** `/admin/bookings/upcoming`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+- `hours` (number, optional): Hours ahead to look (default: 24)
+
+**Response:** `200 OK` - Array of BookingListItemDto
+
+### Get Bookings Requiring Attention
+
+**GET** `/admin/bookings/attention`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Description:** Returns bookings that need admin attention (unassigned with upcoming pickup, driver declined, pending payment too long)
+
+**Response:** `200 OK` - Array of BookingListItemDto
+
+### Get Bookings by Driver
+
+**GET** `/admin/bookings/driver/:driverId`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+- `status` (string, optional): Filter by status
+
+**Response:** `200 OK` - Array of BookingListItemDto
+
+### Get Booking Details (Admin)
+
+**GET** `/admin/bookings/:id`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Response:** `200 OK`
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "bookingId": "BK-20251029-ABC123",
+  "status": "confirmed",
+  "userId": "507f1f77bcf86cd799439011",
+  "passengerName": "John Doe",
+  "passengerFirstName": "John",
+  "passengerLastName": "Doe",
+  "passengerPhone": "+971501234567",
+  "originName": "Dubai Airport",
+  "originAddress": "Dubai International Airport",
+  "originLatitude": 25.2532,
+  "originLongitude": 55.3644,
+  "destinationName": "Downtown Dubai",
+  "destinationAddress": "Downtown Dubai Hotel",
+  "destinationLatitude": 25.1972,
+  "destinationLongitude": 55.2744,
+  "pickupAt": "2025-10-29T10:00:00.000Z",
+  "passengers": 2,
+  "luggage": 1,
+  "extras": ["child_seat"],
+  "vehicleClass": "ECONOMY",
+  "vehicleName": "Economy",
+  "baseFare": 25.0,
+  "distanceCharge": 15.0,
+  "surcharges": 5.0,
+  "total": 75.50,
+  "currency": "AED",
+  "assignedDriver": "507f1f77bcf86cd799439011",
+  "events": [
+    {
+      "event": "created",
+      "status": "pending_payment",
+      "timestamp": "2025-10-29T09:00:00.000Z",
+      "description": "Booking created"
+    }
+  ],
+  "createdAt": "2025-10-29T09:00:00.000Z",
+  "updatedAt": "2025-10-29T09:30:00.000Z"
+}
+```
+
+### Update Booking (Admin)
+
+**PATCH** `/admin/bookings/:id`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "passengerFirstName": "John",
+  "passengerLastName": "Smith",
+  "passengerPhone": "+971501234568",
+  "pickupAt": "2025-10-29T11:00:00.000Z",
+  "originName": "Dubai Airport Terminal 2",
+  "destinationName": "JBR Beach",
+  "passengers": 3,
+  "luggage": 2,
+  "extras": ["child_seat", "meet_greet"],
+  "adminNotes": "Updated by admin - customer requested change"
+}
+```
+
+**Response:** `200 OK` - BookingDetailResponseDto
+
+### Update Booking Status
+
+**PATCH** `/admin/bookings/:id/status`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "status": "confirmed",
+  "reason": "Payment verified manually",
+  "notes": "Customer paid via bank transfer"
+}
+```
+
+**Status Values:** `pending_payment`, `confirmed`, `driver_assigned`, `en_route`, `arrived`, `waiting`, `no_show`, `on_trip`, `completed`, `cancelled_by_user`, `cancelled_by_ops`, `payment_failed`, `driver_declined`
+
+**Response:** `200 OK` - BookingDetailResponseDto
+
+### Assign Driver to Booking
+
+**POST** `/admin/bookings/:id/assign-driver`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "driverId": "507f1f77bcf86cd799439011",
+  "notes": "Assigned preferred driver per customer request"
+}
+```
+
+**Response:** `200 OK` - BookingDetailResponseDto
+
+### Unassign Driver from Booking
+
+**POST** `/admin/bookings/:id/unassign-driver`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "reason": "Driver is no longer available"
+}
+```
+
+**Response:** `200 OK` - BookingDetailResponseDto
+
+### Cancel Booking (Admin)
+
+**POST** `/admin/bookings/:id/cancel`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "reason": "Customer no-show after 30 minutes",
+  "refundAmount": 0,
+  "notes": "Driver waited at pickup location"
+}
+```
+
+**Response:** `200 OK` - BookingDetailResponseDto
+
+### Add Event to Booking
+
+**POST** `/admin/bookings/:id/events`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "event": "note_added",
+  "description": "Customer called to confirm pickup location",
+  "location": "Dubai Airport Terminal 1",
+  "latitude": 25.2532,
+  "longitude": 55.3644
+}
+```
+
+**Response:** `201 Created` - BookingDetailResponseDto
+
+---
+
 ## Drivers
 
 ### Get Driver Profile
