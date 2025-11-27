@@ -24,10 +24,11 @@ import { CreateBasePriceDto, UpdateBasePriceDto, BasePriceResponseDto, BasePrice
 import { BasePriceQueryDto } from '../dto/common.dto';
 import { JwtAuthGuard } from '../../auth/jwt.guard';
 import { Roles } from '../../../common/roles.decorator';
+import { RolesGuard } from '../../../common/roles.guard';
 
 @ApiTags('Base Prices')
 @Controller('base-prices')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class BasePriceController {
   constructor(private readonly basePriceService: BasePriceService) {}

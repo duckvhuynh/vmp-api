@@ -24,10 +24,11 @@ import { CreateSurchargeDto, UpdateSurchargeDto, SurchargeResponseDto, Surcharge
 import { SurchargeQueryDto } from '../dto/common.dto';
 import { JwtAuthGuard } from '../../auth/jwt.guard';
 import { Roles } from '../../../common/roles.decorator';
+import { RolesGuard } from '../../../common/roles.guard';
 
 @ApiTags('Surcharges')
 @Controller('surcharges')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class SurchargeController {
   constructor(private readonly surchargeService: SurchargeService) {}

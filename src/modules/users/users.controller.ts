@@ -27,10 +27,11 @@ import {
 } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { Roles } from '../../common/roles.decorator';
+import { RolesGuard } from '../../common/roles.guard';
 
 @ApiTags('Users')
 @Controller('users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

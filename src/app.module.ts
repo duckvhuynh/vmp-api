@@ -17,7 +17,6 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { SeedModule } from './modules/seed/seed.module';
-import { RolesGuard } from './common/roles.guard';
 
 @Module({
   imports: [
@@ -60,10 +59,6 @@ import { RolesGuard } from './common/roles.guard';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
     },
   ],
 })

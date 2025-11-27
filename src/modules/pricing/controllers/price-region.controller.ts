@@ -24,10 +24,11 @@ import { CreatePriceRegionDto, UpdatePriceRegionDto, PriceRegionResponseDto, Pri
 import { PriceRegionQueryDto } from '../dto/common.dto';
 import { JwtAuthGuard } from '../../auth/jwt.guard';
 import { Roles } from '../../../common/roles.decorator';
+import { RolesGuard } from '../../../common/roles.guard';
 
 @ApiTags('Price Regions')
 @Controller('price-regions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class PriceRegionController {
   constructor(private readonly priceRegionService: PriceRegionService) {}
