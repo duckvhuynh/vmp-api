@@ -977,6 +977,448 @@ Full CRUD operations for admin/dispatcher to manage all bookings.
 
 ---
 
+## Admin - Drivers Management
+
+### List All Drivers
+
+**GET** `/admin/drivers`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| page | number | Page number (default: 1) |
+| limit | number | Items per page (default: 10, max: 100) |
+| search | string | Search by driver ID, name, email, phone, or license plate |
+| status | string | Filter by status: `online`, `offline`, `busy`, `on_break` |
+| availability | string | Filter by availability: `available`, `assigned`, `on_trip`, `unavailable` |
+| vehicleType | string | Filter by vehicle type |
+| isActive | boolean | Filter by active status |
+| isVerified | boolean | Filter by verification status |
+| minRating | number | Filter by minimum rating |
+| sortBy | string | Sort field (default: `createdAt`) |
+| sortOrder | string | Sort order: `asc` or `desc` (default: `desc`) |
+
+**Response:** `200 OK`
+```json
+{
+  "drivers": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "driverId": "DRV-20251029-ABC123",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.driver@example.com",
+      "phone": "+23057001234",
+      "status": "online",
+      "availability": "available",
+      "vehicle": {
+        "make": "Toyota",
+        "model": "Camry",
+        "year": "2022",
+        "color": "White",
+        "licensePlate": "ABC-1234",
+        "type": "ECONOMY",
+        "capacity": 4,
+        "luggageCapacity": 3
+      },
+      "rating": 4.8,
+      "totalTrips": 150,
+      "isActive": true,
+      "isVerified": true,
+      "lastActiveAt": "2025-10-29T10:00:00.000Z",
+      "createdAt": "2025-01-15T08:00:00.000Z"
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "limit": 10,
+  "totalPages": 5
+}
+```
+
+### Get Driver Statistics
+
+**GET** `/admin/drivers/stats`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Response:** `200 OK`
+```json
+{
+  "totalDrivers": 50,
+  "activeDrivers": 35,
+  "verifiedDrivers": 40,
+  "onlineDrivers": 20,
+  "availableDrivers": 15,
+  "busyDrivers": 5,
+  "offlineDrivers": 30,
+  "averageRating": 4.5,
+  "totalTripsThisMonth": 7500,
+  "totalEarningsThisMonth": 125000.50,
+  "byStatus": {
+    "online": 20,
+    "offline": 30,
+    "busy": 5,
+    "on_break": 5
+  },
+  "byVehicleType": {
+    "ECONOMY": 25,
+    "COMFORT": 15,
+    "PREMIUM": 10
+  }
+}
+```
+
+### Find Nearby Drivers
+
+**GET** `/admin/drivers/nearby`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| latitude | number | **Required.** Latitude coordinate |
+| longitude | number | **Required.** Longitude coordinate |
+| radiusKm | number | Search radius in km (default: 10) |
+| vehicleType | string | Filter by vehicle type |
+| limit | number | Maximum results (default: 10, max: 50) |
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "_id": "507f1f77bcf86cd799439011",
+    "driverId": "DRV-20251029-ABC123",
+    "name": "John Doe",
+    "phone": "+23057001234",
+    "vehicle": {
+      "make": "Toyota",
+      "model": "Camry",
+      "year": "2022",
+      "color": "White",
+      "licensePlate": "ABC-1234",
+      "type": "ECONOMY",
+      "capacity": 4,
+      "luggageCapacity": 3
+    },
+    "location": {
+      "latitude": -20.1609,
+      "longitude": 57.5012,
+      "address": "Port Louis, Mauritius",
+      "lastUpdated": "2025-10-29T10:00:00.000Z"
+    },
+    "distance": 2.5,
+    "rating": 4.8,
+    "totalTrips": 150
+  }
+]
+```
+
+### Get Driver Details
+
+**GET** `/admin/drivers/:id`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Response:** `200 OK`
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "driverId": "DRV-20251029-ABC123",
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.driver@example.com",
+  "phone": "+23057001234",
+  "status": "online",
+  "availability": "available",
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Camry",
+    "year": "2022",
+    "color": "White",
+    "licensePlate": "ABC-1234",
+    "type": "ECONOMY",
+    "capacity": 4,
+    "luggageCapacity": 3
+  },
+  "currentLocation": {
+    "latitude": -20.1609,
+    "longitude": 57.5012,
+    "address": "Port Louis, Mauritius",
+    "lastUpdated": "2025-10-29T10:00:00.000Z"
+  },
+  "stats": {
+    "totalTrips": 150,
+    "completedTrips": 145,
+    "cancelledTrips": 5,
+    "totalEarnings": 12500.75,
+    "rating": 4.8,
+    "totalRatings": 120
+  },
+  "rating": 4.8,
+  "totalTrips": 150,
+  "isActive": true,
+  "isVerified": true,
+  "currentBookingId": null,
+  "lastActiveAt": "2025-10-29T10:00:00.000Z",
+  "createdAt": "2025-01-15T08:00:00.000Z",
+  "updatedAt": "2025-10-29T10:00:00.000Z"
+}
+```
+
+### Create Driver
+
+**POST** `/admin/drivers`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Request Body:**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.driver@example.com",
+  "phone": "+23057001234",
+  "vehicleMake": "Toyota",
+  "vehicleModel": "Camry",
+  "vehicleYear": "2022",
+  "vehicleColor": "White",
+  "licensePlate": "ABC-1234",
+  "vehicleType": "ECONOMY",
+  "capacity": 4,
+  "luggageCapacity": 3,
+  "isActive": true,
+  "isVerified": false
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "driverId": "DRV-20251029-ABC123",
+  "firstName": "John",
+  "lastName": "Doe",
+  ...
+}
+```
+
+**Error Responses:**
+- `409 Conflict` - Email or license plate already exists
+
+### Update Driver
+
+**PUT** `/admin/drivers/:id`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Request Body:** (All fields optional)
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.driver@example.com",
+  "phone": "+23057001234",
+  "vehicleMake": "Toyota",
+  "vehicleModel": "Camry",
+  "vehicleYear": "2023",
+  "vehicleColor": "Silver",
+  "licensePlate": "ABC-5678",
+  "vehicleType": "COMFORT",
+  "capacity": 4,
+  "luggageCapacity": 3
+}
+```
+
+**Response:** `200 OK` - Returns updated driver details
+
+### Delete (Deactivate) Driver
+
+**DELETE** `/admin/drivers/:id`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Response:** `204 No Content`
+
+**Error Response:** `400 Bad Request` - Driver has active bookings
+
+### Permanently Delete Driver
+
+**DELETE** `/admin/drivers/:id/permanent`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Response:** `204 No Content`
+
+**Error Response:** `400 Bad Request` - Driver has booking history
+
+### Update Driver Status
+
+**PATCH** `/admin/drivers/:id/status`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "status": "online",
+  "reason": "Shift started"
+}
+```
+
+**Status Values:** `online`, `offline`, `busy`, `on_break`
+
+**Response:** `200 OK` - Returns updated driver details
+
+### Update Driver Availability
+
+**PATCH** `/admin/drivers/:id/availability`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "availability": "available",
+  "reason": "Back from break"
+}
+```
+
+**Availability Values:** `available`, `assigned`, `on_trip`, `unavailable`
+
+**Response:** `200 OK` - Returns updated driver details
+
+### Activate/Deactivate Driver
+
+**PATCH** `/admin/drivers/:id/activate`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Request Body:**
+```json
+{
+  "isActive": true,
+  "reason": "Account reactivated"
+}
+```
+
+**Response:** `200 OK` - Returns updated driver details
+
+**Error Response:** `400 Bad Request` - Cannot deactivate driver with active bookings
+
+### Verify/Unverify Driver
+
+**PATCH** `/admin/drivers/:id/verify`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Request Body:**
+```json
+{
+  "isVerified": true,
+  "notes": "Documents verified and approved"
+}
+```
+
+**Response:** `200 OK` - Returns updated driver details
+
+### Update Driver Location (Admin Override)
+
+**PATCH** `/admin/drivers/:id/location`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Request Body:**
+```json
+{
+  "latitude": -20.1609,
+  "longitude": 57.5012,
+  "address": "Port Louis, Mauritius"
+}
+```
+
+**Response:** `200 OK` - Returns updated driver details
+
+### Update Driver Vehicle
+
+**PATCH** `/admin/drivers/:id/vehicle`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`
+
+**Request Body:** (All fields optional)
+```json
+{
+  "vehicleMake": "Toyota",
+  "vehicleModel": "Prius",
+  "vehicleYear": "2024",
+  "vehicleColor": "Blue",
+  "licensePlate": "NEW-1234",
+  "vehicleType": "COMFORT",
+  "capacity": 4,
+  "luggageCapacity": 3
+}
+```
+
+**Response:** `200 OK` - Returns updated driver details
+
+**Error Response:** `409 Conflict` - License plate already exists
+
+### Get Driver Booking History
+
+**GET** `/admin/drivers/:id/bookings`
+
+**Headers:** `Authorization: Bearer <accessToken>`
+**Roles:** `admin`, `dispatcher`
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| page | number | Page number (default: 1) |
+| limit | number | Items per page (default: 10) |
+
+**Response:** `200 OK`
+```json
+{
+  "bookings": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "bookingId": "BK-20251029-ABC123",
+      "status": "completed",
+      "passengerName": "Jane Smith",
+      "originName": "Airport",
+      "destinationName": "Hotel",
+      "pickupAt": "2025-10-29T10:00:00.000Z",
+      "total": 75.50,
+      "currency": "MUR",
+      "createdAt": "2025-10-29T08:00:00.000Z"
+    }
+  ],
+  "total": 150,
+  "page": 1,
+  "limit": 10,
+  "totalPages": 15
+}
+```
+
+---
+
 ## Dispatch
 
 ### Assign Driver to Booking
