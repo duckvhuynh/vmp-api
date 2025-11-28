@@ -21,4 +21,11 @@ export const validationSchema = Joi.object({
   ADMIN_PASSWORD: Joi.string().min(8).allow(''),
   ADMIN_NAME: Joi.string().allow(''),
   ADMIN_PHONE: Joi.string().allow(''),
+  // MinIO/S3 storage configuration (optional)
+  MINIO_ENDPOINT: Joi.string().allow(''),
+  MINIO_PORT: Joi.number().default(443),
+  MINIO_SSL: Joi.string().valid('true', 'false').default('true'),
+  MINIO_ACCESS_KEY: Joi.string().allow(''),
+  MINIO_SECRET_KEY: Joi.string().allow(''),
+  MINIO_BUCKET: Joi.string().default('vmp'),
 }).or('MONGODB_URI', 'MONGO_URI').or('REDIS_URL', 'REDIS_HOST');

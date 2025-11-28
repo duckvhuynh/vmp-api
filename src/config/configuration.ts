@@ -35,5 +35,14 @@ export default () => {
       name: process.env.ADMIN_NAME || 'Admin User',
       phone: process.env.ADMIN_PHONE,
     },
+    // MinIO/S3 storage configuration
+    minio: {
+      endpoint: process.env.MINIO_ENDPOINT || '',
+      port: parseInt(process.env.MINIO_PORT || '443', 10),
+      useSSL: process.env.MINIO_SSL !== 'false', // default to true
+      accessKey: process.env.MINIO_ACCESS_KEY || '',
+      secretKey: process.env.MINIO_SECRET_KEY || '',
+      bucket: process.env.MINIO_BUCKET || 'vmp',
+    },
   };
 };

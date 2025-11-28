@@ -23,6 +23,9 @@ export class QuotesService {
   ) {}
 
   async create(dto: CreateQuoteDto): Promise<QuoteResponseDto> {
+    // Clear cached vehicles from previous request
+    this.cachedVehicles = [];
+    
     try {
       this.logger.log(`Creating quote for pickup at ${dto.pickupAt}`);
 
@@ -203,7 +206,41 @@ export class QuotesService {
       return [dto.preferredVehicleClass];
     }
 
-    // Filter vehicle classes based on passenger and luggage capacity
+    // Fetch available vehicles from the database that can accommodate the passengers and luggage
+    try {
+      const availableVehicles = await this.vehiclesService.findAll({
+        isActive: true,
+        minPassengers: dto.pax,
+      });
+
+      if (availableVehicles.vehicles.length > 0) {
+        // Filter by luggage capacity and get unique categories
+        const suitableVehicles = availableVehicles.vehicles.filter(
+          v => v.capacity.maxLuggage >= dto.bags
+        );
+
+        if (suitableVehicles.length > 0) {
+          // Map vehicle categories to VehicleClass enum
+          const categoriesSet = new Set<VehicleClass>();
+          for (const vehicle of suitableVehicles) {
+            const vehicleClass = this.mapCategoryToVehicleClass(vehicle.category);
+            if (vehicleClass) {
+              categoriesSet.add(vehicleClass);
+            }
+          }
+
+          if (categoriesSet.size > 0) {
+            // Store the vehicles data for later use in pricing
+            this.cachedVehicles = suitableVehicles;
+            return Array.from(categoriesSet);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.warn('Failed to fetch vehicles from database, using default classes');
+    }
+
+    // Fallback to default vehicle class filtering
     const allClasses = Object.values(VehicleClass);
     const suitableClasses = [];
 
@@ -217,16 +254,55 @@ export class QuotesService {
     return suitableClasses.length > 0 ? suitableClasses : [VehicleClass.ECONOMY];
   }
 
-  private getVehicleClassInfo(vehicleClass: VehicleClass) {
-    const classInfo = {
-      [VehicleClass.ECONOMY]: { name: 'Economy', paxCapacity: 3, bagCapacity: 2 },
-      [VehicleClass.COMFORT]: { name: 'Comfort', paxCapacity: 3, bagCapacity: 3 },
-      [VehicleClass.PREMIUM]: { name: 'Premium', paxCapacity: 3, bagCapacity: 3 },
-      [VehicleClass.VAN]: { name: 'Van', paxCapacity: 6, bagCapacity: 6 },
-      [VehicleClass.LUXURY]: { name: 'Luxury', paxCapacity: 3, bagCapacity: 3 },
+  /**
+   * Map vehicle category from database to VehicleClass enum
+   */
+  private mapCategoryToVehicleClass(category: string): VehicleClass | null {
+    const mapping: Record<string, VehicleClass> = {
+      'economy': VehicleClass.ECONOMY,
+      'standard': VehicleClass.COMFORT,
+      'comfort': VehicleClass.COMFORT,
+      'premium': VehicleClass.PREMIUM,
+      'luxury': VehicleClass.LUXURY,
+      'business': VehicleClass.PREMIUM,
     };
-    return classInfo[vehicleClass];
+    return mapping[category.toLowerCase()] || null;
   }
+
+  /**
+   * Get vehicle info - first tries from cached database vehicles, then falls back to defaults
+   */
+  private getVehicleClassInfo(vehicleClass: VehicleClass): { name: string; paxCapacity: number; bagCapacity: number; image?: string } {
+    // Try to get from cached vehicles first
+    if (this.cachedVehicles && this.cachedVehicles.length > 0) {
+      const matchingVehicle = this.cachedVehicles.find(v => {
+        const mappedClass = this.mapCategoryToVehicleClass(v.category);
+        return mappedClass === vehicleClass;
+      });
+
+      if (matchingVehicle) {
+        return {
+          name: matchingVehicle.name.value || matchingVehicle.name.translations?.en || vehicleClass,
+          paxCapacity: matchingVehicle.capacity.maxPassengers,
+          bagCapacity: matchingVehicle.capacity.maxLuggage,
+          image: matchingVehicle.image,
+        };
+      }
+    }
+
+    // Fallback to default values
+    const defaultClassInfo = {
+      [VehicleClass.ECONOMY]: { name: 'Economy', paxCapacity: 3, bagCapacity: 2 },
+      [VehicleClass.COMFORT]: { name: 'Comfort', paxCapacity: 4, bagCapacity: 3 },
+      [VehicleClass.PREMIUM]: { name: 'Premium', paxCapacity: 4, bagCapacity: 3 },
+      [VehicleClass.VAN]: { name: 'Van', paxCapacity: 7, bagCapacity: 6 },
+      [VehicleClass.LUXURY]: { name: 'Luxury', paxCapacity: 4, bagCapacity: 3 },
+    };
+    return defaultClassInfo[vehicleClass];
+  }
+
+  // Cached vehicles from database for current quote request
+  private cachedVehicles: any[] = [];
 
   private mapToVehicleClassDto(vehicleClass: VehicleClass, priceBreakdown: any): QuoteVehicleClassDto {
     const classInfo = this.getVehicleClassInfo(vehicleClass);
@@ -255,6 +331,7 @@ export class QuotesService {
       name: classInfo.name,
       paxCapacity: classInfo.paxCapacity,
       bagCapacity: classInfo.bagCapacity,
+      image: classInfo.image,
       pricing,
       appliedSurcharges,
       includedWaitingTime: priceBreakdown.includedWaitingTime,
@@ -390,6 +467,7 @@ export class QuotesService {
       name: classInfo.name,
       paxCapacity: classInfo.paxCapacity,
       bagCapacity: classInfo.bagCapacity,
+      image: classInfo.image,
       pricing,
       appliedSurcharges: [],
       includedWaitingTime: 15,

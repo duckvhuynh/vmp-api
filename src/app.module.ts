@@ -17,6 +17,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PricingModule } from './modules/pricing/pricing.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { SeedModule } from './modules/seed/seed.module';
+import { MinioModule } from './modules/minio/minio.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { SeedModule } from './modules/seed/seed.module';
     PricingModule,
     VehiclesModule,
     SeedModule,
+    MinioModule,
+    UploadModule,
   ],
   providers: [
     {

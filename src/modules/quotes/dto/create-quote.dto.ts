@@ -158,6 +158,9 @@ export class QuoteVehicleClassDto {
   @ApiProperty({ example: 2, description: 'Luggage capacity' })
   bagCapacity!: number;
 
+  @ApiPropertyOptional({ example: 'https://example.com/vehicle.jpg', description: 'Vehicle image URL' })
+  image?: string;
+
   @ApiProperty({ type: PriceBreakdownDto })
   pricing!: PriceBreakdownDto;
 
