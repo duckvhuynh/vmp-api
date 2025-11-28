@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, Max, IsEnum, IsMongoId } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, Max, IsEnum, IsMongoId, ValidateNested } from 'class-validator';
 import { VehicleClass } from '../../pricing/schemas/base-price.schema';
 
 export class PlaceDto {
@@ -45,9 +46,13 @@ export class PlaceDto {
 
 export class CreateQuoteDto {
   @ApiProperty({ type: PlaceDto, description: 'Origin place (airport or address)' })
+  @ValidateNested()
+  @Type(() => PlaceDto)
   origin!: PlaceDto;
 
   @ApiProperty({ type: PlaceDto, description: 'Destination place (airport or address)' })
+  @ValidateNested()
+  @Type(() => PlaceDto)
   destination!: PlaceDto;
 
   @ApiProperty({ example: '2025-09-04T10:00:00.000Z' })
