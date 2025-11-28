@@ -42,32 +42,61 @@ export class QuotesService {
       // Get vehicle classes to quote
       const vehicleClasses = await this.getVehicleClassesToQuote(dto, originRegion);
 
+      // Calculate distance if not provided (simple approximation)
+      let distanceKm = dto.distanceKm;
+      let durationMinutes = dto.durationMinutes;
+      
+      if (!distanceKm && dto.origin.latitude && dto.origin.longitude && 
+          dto.destination.latitude && dto.destination.longitude) {
+        distanceKm = this.calculateDistanceKm(
+          dto.origin.latitude, dto.origin.longitude,
+          dto.destination.latitude, dto.destination.longitude
+        );
+        // Estimate duration: average 40 km/h in Mauritius traffic
+        durationMinutes = durationMinutes || Math.round((distanceKm / 40) * 60);
+        this.logger.log(`Estimated distance: ${distanceKm.toFixed(2)} km, duration: ${durationMinutes} min`);
+      }
+
       // Calculate pricing for each vehicle class
       const vehicleOptions: QuoteVehicleClassDto[] = [];
 
       for (const vehicleClass of vehicleClasses) {
         try {
-          const priceBreakdown = await this.priceCalculationService.calculatePrice({
-            originLatitude: dto.origin.latitude,
-            originLongitude: dto.origin.longitude,
-            destinationLatitude: dto.destination.latitude,
-            destinationLongitude: dto.destination.longitude,
-            originRegionId: originRegion?._id?.toString(),
-            destinationRegionId: destinationRegion?._id?.toString(),
-            vehicleClass: vehicleClass,
-            distanceKm: dto.distanceKm || 0,
-            durationMinutes: dto.durationMinutes || 0,
-            bookingDateTime: pickupTime,
-            minutesUntilPickup,
-            extras: dto.extras || [],
-          });
+          // Try to get pricing from the pricing service
+          if (originRegion) {
+            const priceBreakdown = await this.priceCalculationService.calculatePrice({
+              originLatitude: dto.origin.latitude,
+              originLongitude: dto.origin.longitude,
+              destinationLatitude: dto.destination.latitude,
+              destinationLongitude: dto.destination.longitude,
+              originRegionId: originRegion?._id?.toString(),
+              destinationRegionId: destinationRegion?._id?.toString(),
+              vehicleClass: vehicleClass,
+              distanceKm: distanceKm || 0,
+              durationMinutes: durationMinutes || 0,
+              bookingDateTime: pickupTime,
+              minutesUntilPickup,
+              extras: dto.extras || [],
+            });
 
-          const vehicleOption = this.mapToVehicleClassDto(vehicleClass, priceBreakdown);
-          vehicleOptions.push(vehicleOption);
+            const vehicleOption = this.mapToVehicleClassDto(vehicleClass, priceBreakdown);
+            vehicleOptions.push(vehicleOption);
+          } else {
+            // Fallback to default pricing when no region is configured
+            const vehicleOption = this.calculateDefaultPrice(vehicleClass, distanceKm || 0, durationMinutes || 0, dto.extras || []);
+            vehicleOptions.push(vehicleOption);
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           this.logger.warn(`Failed to calculate price for vehicle class ${vehicleClass}: ${errorMessage}`);
-          // Continue with other vehicle classes
+          
+          // Use fallback default pricing
+          try {
+            const vehicleOption = this.calculateDefaultPrice(vehicleClass, distanceKm || 0, durationMinutes || 0, dto.extras || []);
+            vehicleOptions.push(vehicleOption);
+          } catch (fallbackError) {
+            this.logger.warn(`Fallback pricing also failed for ${vehicleClass}`);
+          }
         }
       }
 
@@ -100,8 +129,8 @@ export class QuotesService {
         quoteId,
         vehicleClasses: vehicleOptions,
         policy,
-        estimatedDistance: dto.distanceKm,
-        estimatedDuration: dto.durationMinutes,
+        estimatedDistance: distanceKm,
+        estimatedDuration: durationMinutes,
         originName: await this.getLocationName(dto.origin),
         destinationName: await this.getLocationName(dto.destination),
         pickupAt: dto.pickupAt,
@@ -138,7 +167,11 @@ export class QuotesService {
 
     // Resolve origin region
     if (dto.origin.regionId) {
-      originRegion = await this.priceRegionService.findOne(dto.origin.regionId);
+      try {
+        originRegion = await this.priceRegionService.findOne(dto.origin.regionId);
+      } catch (error) {
+        this.logger.warn(`Region ${dto.origin.regionId} not found`);
+      }
     } else if (dto.origin.latitude && dto.origin.longitude) {
       const regions = await this.priceRegionService.findByLocation(dto.origin.longitude, dto.origin.latitude);
       originRegion = regions[0] || null;
@@ -146,14 +179,20 @@ export class QuotesService {
 
     // Resolve destination region
     if (dto.destination.regionId) {
-      destinationRegion = await this.priceRegionService.findOne(dto.destination.regionId);
+      try {
+        destinationRegion = await this.priceRegionService.findOne(dto.destination.regionId);
+      } catch (error) {
+        this.logger.warn(`Region ${dto.destination.regionId} not found`);
+      }
     } else if (dto.destination.latitude && dto.destination.longitude) {
       const regions = await this.priceRegionService.findByLocation(dto.destination.longitude, dto.destination.latitude);
       destinationRegion = regions[0] || null;
     }
 
+    // If no origin region found, this location may not be covered
+    // We'll handle this in the pricing calculation by falling back to default prices
     if (!originRegion) {
-      throw new BadRequestException('Origin location is not covered by any price region');
+      this.logger.warn('Origin location is not covered by any configured price region, will use default pricing');
     }
 
     return { originRegion, destinationRegion };
@@ -261,7 +300,7 @@ export class QuotesService {
         pricing: {
           baseFare: 25,
           total: 45.5,
-          currency: 'AED',
+          currency: 'MUR',
         },
       }],
       policy: {
@@ -277,5 +316,106 @@ export class QuotesService {
       createdAt: quote.createdAt,
       expiresAt: quote.expiresAt,
     };
+  }
+
+  /**
+   * Calculate distance between two points using Haversine formula
+   * Returns distance in kilometers
+   */
+  private calculateDistanceKm(
+    lat1: number, lon1: number,
+    lat2: number, lon2: number
+  ): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    // Add 20% for road routing (roads are not straight lines)
+    return Math.round(distance * 1.2 * 100) / 100;
+  }
+
+  private toRad(deg: number): number {
+    return deg * (Math.PI / 180);
+  }
+
+  /**
+   * Calculate default pricing when no region/base price is configured
+   * Uses standard Mauritius taxi rates
+   */
+  private calculateDefaultPrice(
+    vehicleClass: VehicleClass,
+    distanceKm: number,
+    durationMinutes: number,
+    extras: string[]
+  ): QuoteVehicleClassDto {
+    const classInfo = this.getVehicleClassInfo(vehicleClass);
+    
+    // Default pricing for Mauritius (in MUR - Mauritian Rupees)
+    const defaultPricing = {
+      [VehicleClass.ECONOMY]: { baseFare: 300, perKm: 35, perMin: 3, minimum: 400 },
+      [VehicleClass.COMFORT]: { baseFare: 400, perKm: 45, perMin: 4, minimum: 550 },
+      [VehicleClass.PREMIUM]: { baseFare: 600, perKm: 60, perMin: 5, minimum: 800 },
+      [VehicleClass.VAN]: { baseFare: 500, perKm: 50, perMin: 4, minimum: 700 },
+      [VehicleClass.LUXURY]: { baseFare: 1000, perKm: 80, perMin: 7, minimum: 1500 },
+    };
+
+    const rates = defaultPricing[vehicleClass];
+    
+    const distanceCharge = distanceKm * rates.perKm;
+    const timeCharge = durationMinutes * rates.perMin;
+    const extrasTotal = this.calculateExtrasTotal(extras);
+    
+    const fareBeforeMin = rates.baseFare + distanceCharge + timeCharge + extrasTotal;
+    const total = Math.max(fareBeforeMin, rates.minimum + extrasTotal);
+    
+    const pricing: PriceBreakdownDto = {
+      baseFare: rates.baseFare,
+      distanceCharge: Math.round(distanceCharge * 100) / 100,
+      timeCharge: Math.round(timeCharge * 100) / 100,
+      extras: extrasTotal,
+      total: Math.round(total * 100) / 100,
+      currency: 'MUR',
+    };
+
+    return {
+      id: vehicleClass,
+      name: classInfo.name,
+      paxCapacity: classInfo.paxCapacity,
+      bagCapacity: classInfo.bagCapacity,
+      pricing,
+      appliedSurcharges: [],
+      includedWaitingTime: 15,
+      additionalWaitingPrice: 5,
+      isFixedPrice: false,
+    };
+  }
+
+  /**
+   * Calculate total cost of extras
+   */
+  private calculateExtrasTotal(extras: string[]): number {
+    // Define pricing for common extras (in MUR)
+    const extrasPricing: Record<string, number> = {
+      'child_seat': 200,
+      'baby_seat': 250,
+      'wheelchair_accessible': 0,
+      'extra_luggage': 100,
+      'meet_and_greet': 300,
+      'priority_pickup': 400,
+      'extra_stop': 200,
+    };
+
+    return extras.reduce((total, extra) => {
+      const price = extrasPricing[extra.toLowerCase()] || 0;
+      return total + price;
+    }, 0);
   }
 }

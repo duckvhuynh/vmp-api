@@ -107,39 +107,120 @@ export class PriceRegionService {
   }
 
   async findByLocation(longitude: number, latitude: number): Promise<PriceRegionResponseDto[]> {
-    const point = [longitude, latitude];
+    // Get all active regions and filter them in code
+    // This avoids MongoDB geo query limitations with $or and aggregation
+    const allRegions = await this.priceRegionModel.find({ isActive: true }).exec();
     
-    // Find regions that contain this point
-    const regions = await this.priceRegionModel.aggregate([
-      {
-        $match: {
-          isActive: true,
-          $or: [
-            // Circle regions
-            {
-              'shape.type': RegionShapeType.CIRCLE,
-              'shape.center': {
-                $nearSphere: {
-                  $geometry: { type: 'Point', coordinates: point },
-                  $maxDistance: { $expr: '$shape.radius' }
-                }
-              }
-            },
-            // Polygon regions
-            {
-              'shape.type': RegionShapeType.POLYGON,
-              'shape.geometry': {
-                $geoIntersects: {
-                  $geometry: { type: 'Point', coordinates: point }
-                }
-              }
-            }
-          ]
+    const matchingRegions: PriceRegionDocument[] = [];
+    
+    for (const region of allRegions) {
+      if (region.shape.type === RegionShapeType.CIRCLE) {
+        // For circle regions, calculate distance using Haversine formula
+        if (region.shape.center && region.shape.radius) {
+          const [centerLon, centerLat] = region.shape.center;
+          const distanceMeters = this.calculateDistanceMeters(
+            latitude, longitude, centerLat, centerLon
+          );
+          
+          if (distanceMeters <= region.shape.radius) {
+            matchingRegions.push(region);
+          }
+        }
+      } else if (region.shape.type === RegionShapeType.POLYGON) {
+        // For polygon regions, check if point is inside the polygon
+        if (region.shape.geometry) {
+          const isInside = this.isPointInPolygon(
+            [longitude, latitude], 
+            region.shape.geometry
+          );
+          
+          if (isInside) {
+            matchingRegions.push(region);
+          }
         }
       }
-    ]);
+    }
 
-    return regions.map(region => this.toResponseDto(region));
+    return matchingRegions.map(region => this.toResponseDto(region));
+  }
+
+  /**
+   * Calculate distance between two points using Haversine formula
+   * Returns distance in meters
+   */
+  private calculateDistanceMeters(
+    lat1: number, lon1: number, 
+    lat2: number, lon2: number
+  ): number {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRad(deg: number): number {
+    return deg * (Math.PI / 180);
+  }
+
+  /**
+   * Check if a point is inside a GeoJSON polygon using ray casting algorithm
+   */
+  private isPointInPolygon(point: [number, number], geometry: any): boolean {
+    if (!geometry || !geometry.coordinates) return false;
+    
+    // GeoJSON polygon coordinates are [longitude, latitude]
+    const [x, y] = point; // longitude, latitude
+    
+    // Handle both Polygon and MultiPolygon
+    const polygons = geometry.type === 'MultiPolygon' 
+      ? geometry.coordinates 
+      : [geometry.coordinates];
+    
+    for (const polygon of polygons) {
+      // The first array is the outer ring, subsequent arrays are holes
+      const outerRing = polygon[0];
+      
+      if (this.isPointInRing(x, y, outerRing)) {
+        // Check if point is NOT in any holes
+        let inHole = false;
+        for (let i = 1; i < polygon.length; i++) {
+          if (this.isPointInRing(x, y, polygon[i])) {
+            inHole = true;
+            break;
+          }
+        }
+        
+        if (!inHole) return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Ray casting algorithm to check if point is inside a ring
+   */
+  private isPointInRing(x: number, y: number, ring: number[][]): boolean {
+    let inside = false;
+    
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      
+      if (intersect) inside = !inside;
+    }
+    
+    return inside;
   }
 
   private toResponseDto(region: PriceRegionDocument): PriceRegionResponseDto {
