@@ -47,12 +47,13 @@ export class PaymentsController {
   // ============ Fiserv Checkout Endpoints ============
 
   @Post('checkout')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  // No authentication required - allows guest checkout
   @ApiOperation({
     summary: 'Create payment checkout',
     description: `
       Create a Fiserv hosted checkout session for a booking.
+      
+      **No authentication required** - supports guest checkout.
       
       **Flow:**
       1. Call this endpoint with booking details
