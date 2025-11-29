@@ -340,8 +340,7 @@ export class FiservService {
       'Api-Key': this.config.apiKey,
       'Client-Request-Id': clientRequestId,
       'Timestamp': timestamp,
-      'Authorization': signature,
-      'Auth-Token-Type': 'HMAC',
+      'Message-Signature': signature,
     };
   }
 
