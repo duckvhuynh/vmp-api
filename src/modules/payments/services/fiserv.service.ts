@@ -83,32 +83,32 @@ export class FiservService {
     const merchantTransactionId = dto.merchantTransactionId || 
       `TXN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${booking.bookingId}`;
 
-    // Build the checkout request payload
-    const payload = {
+    // Build the checkout request payload per Fiserv docs
+    // Reference: https://docs.fiserv.dev/public/reference/postcheckouts
+    const payload: Record<string, any> = {
       storeId: this.config.storeId,
       merchantTransactionId,
+      transactionOrigin: 'ECOM',
       transactionType: FiservTransactionType.SALE,
       transactionAmount: {
-        total: dto.total,
+        total: String(dto.total), // Fiserv expects string
         currency: dto.currency || 'MUR',
       },
-      billing: dto.customerName || dto.customerEmail ? {
-        name: dto.customerName,
-        email: dto.customerEmail,
-      } : undefined,
       checkoutSettings: {
         locale: dto.locale || 'en_GB',
         preSelectedPaymentMethod: dto.paymentMethod || FiservPaymentMethod.CARDS,
-        webHooksUrl: this.config.webhookUrl,
+        webHooksUrl: this.config.webhookUrl || undefined,
         redirectBackUrls: {
           successUrl: dto.successUrl || `${this.config.defaultSuccessUrl}?bookingId=${booking.bookingId}`,
           failureUrl: dto.failureUrl || `${this.config.defaultFailureUrl}?bookingId=${booking.bookingId}`,
         },
       },
-      additionalDetails: {
-        comments: dto.description || `Payment for booking ${booking.bookingId}`,
-      },
     };
+
+    // Remove undefined/null values to avoid Fiserv validation errors
+    if (!payload.checkoutSettings.webHooksUrl) {
+      delete payload.checkoutSettings.webHooksUrl;
+    }
 
     this.logger.log(`Creating Fiserv checkout for booking ${booking.bookingId}`);
     this.logger.debug(`Fiserv base URL: ${this.config.baseUrl}`);
