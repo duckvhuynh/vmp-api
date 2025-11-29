@@ -57,6 +57,9 @@ export class SimpleBooking {
   @Prop({ type: String, required: true })
   passengerPhone!: string;
 
+  @Prop({ type: String })
+  passengerEmail?: string;
+
   // Origin fields
   @Prop({ type: String, enum: ['airport', 'address', 'hotel', 'port'], default: 'address' })
   originType?: string;
@@ -131,6 +134,14 @@ export class SimpleBooking {
   @Prop({ type: [String], default: [] })
   extras!: string[];
 
+  // Meet & greet and notes
+  @Prop({ type: String })
+  signText?: string;
+
+  @Prop({ type: String })
+  notes?: string;
+
+  // Vehicle details
   @Prop({ type: String })
   vehicleClass!: string;
 

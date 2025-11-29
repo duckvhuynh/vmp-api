@@ -114,13 +114,55 @@ export class QuotesService {
       // Build policy information
       const policy = this.buildPolicyInfo(dto, vehicleOptions[0]);
 
-      // Create simplified quote object for persistence
+      // Create full quote object for persistence
       const quote = new this.quoteModel({
         quoteId,
+        origin: {
+          type: dto.origin.type,
+          airportCode: dto.origin.airportCode,
+          terminal: dto.origin.terminal,
+          name: dto.origin.name,
+          address: dto.origin.address,
+          latitude: dto.origin.latitude,
+          longitude: dto.origin.longitude,
+          regionId: dto.origin.regionId,
+        },
+        destination: {
+          type: dto.destination.type,
+          airportCode: dto.destination.airportCode,
+          terminal: dto.destination.terminal,
+          name: dto.destination.name,
+          address: dto.destination.address,
+          latitude: dto.destination.latitude,
+          longitude: dto.destination.longitude,
+          regionId: dto.destination.regionId,
+        },
         pickupAt: pickupTime,
         passengers: dto.pax,
         luggage: dto.bags,
         extras: dto.extras || [],
+        vehicleOptions: vehicleOptions.map(v => ({
+          vehicleClass: v.id,
+          name: v.name,
+          paxCapacity: v.paxCapacity,
+          bagCapacity: v.bagCapacity,
+          image: v.image,
+          baseFare: v.pricing.baseFare,
+          distanceCharge: v.pricing.distanceCharge,
+          timeCharge: v.pricing.timeCharge,
+          airportFees: v.pricing.airportFees,
+          surcharges: v.pricing.surcharges,
+          extrasTotal: v.pricing.extras,
+          total: v.pricing.total,
+          currency: v.pricing.currency,
+          isFixedPrice: v.isFixedPrice,
+        })),
+        estimatedDistanceKm: distanceKm,
+        estimatedDurationMinutes: durationMinutes,
+        originName: await this.getLocationName(dto.origin),
+        destinationName: await this.getLocationName(dto.destination),
+        cancellationPolicy: policy.cancellation,
+        waitingTimePolicy: policy.includedWait,
         expiresAt,
       });
 
