@@ -57,6 +57,16 @@ export class SimpleBooking {
   @Prop({ type: String, required: true })
   passengerPhone!: string;
 
+  // Origin fields
+  @Prop({ type: String, enum: ['airport', 'address', 'hotel', 'port'], default: 'address' })
+  originType?: string;
+
+  @Prop({ type: String })
+  originAirportCode?: string;
+
+  @Prop({ type: String })
+  originTerminal?: string;
+
   @Prop({ type: String })
   originName?: string;
 
@@ -69,6 +79,19 @@ export class SimpleBooking {
   @Prop({ type: Number })
   originLongitude?: number;
 
+  @Prop({ type: Types.ObjectId, ref: 'PriceRegion' })
+  originRegionId?: Types.ObjectId;
+
+  // Destination fields
+  @Prop({ type: String, enum: ['airport', 'address', 'hotel', 'port'], default: 'address' })
+  destinationType?: string;
+
+  @Prop({ type: String })
+  destinationAirportCode?: string;
+
+  @Prop({ type: String })
+  destinationTerminal?: string;
+
   @Prop({ type: String })
   destinationName?: string;
 
@@ -80,6 +103,9 @@ export class SimpleBooking {
 
   @Prop({ type: Number })
   destinationLongitude?: number;
+
+  @Prop({ type: Types.ObjectId, ref: 'PriceRegion' })
+  destinationRegionId?: Types.ObjectId;
 
   @Prop({ type: Date, required: true })
   pickupAt!: Date;

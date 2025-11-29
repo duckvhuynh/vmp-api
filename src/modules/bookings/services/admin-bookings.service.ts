@@ -16,6 +16,7 @@ import {
   BookingStatsDto,
   BookingListItemDto,
 } from '../dto/admin-booking.dto';
+import { PlaceDto, PlaceResponseDto, PlaceType, getPlaceDisplayName } from '../../../common/dto/place.dto';
 
 @Injectable()
 export class AdminBookingsService {
@@ -44,22 +45,33 @@ export class AdminBookingsService {
       status = BookingStatus.DRIVER_ASSIGNED;
     }
 
-    // Create booking
+    // Create booking with consistent PlaceDto structure
     const booking = new this.bookingModel({
       bookingId,
       status,
-      userId: dto.userId ? new Types.ObjectId(dto.userId) : new Types.ObjectId(adminUserId), // Use admin ID if no user specified
+      userId: dto.userId ? new Types.ObjectId(dto.userId) : new Types.ObjectId(adminUserId),
       passengerFirstName: dto.passengerFirstName,
       passengerLastName: dto.passengerLastName,
       passengerPhone: dto.passengerPhone,
-      originName: dto.originName,
-      originAddress: dto.originAddress,
-      originLatitude: dto.originLatitude,
-      originLongitude: dto.originLongitude,
-      destinationName: dto.destinationName,
-      destinationAddress: dto.destinationAddress,
-      destinationLatitude: dto.destinationLatitude,
-      destinationLongitude: dto.destinationLongitude,
+      // Origin fields from PlaceDto
+      originType: dto.origin.type,
+      originAirportCode: dto.origin.airportCode,
+      originTerminal: dto.origin.terminal,
+      originName: dto.origin.name || getPlaceDisplayName(dto.origin),
+      originAddress: dto.origin.address,
+      originLatitude: dto.origin.latitude,
+      originLongitude: dto.origin.longitude,
+      originRegionId: dto.origin.regionId ? new Types.ObjectId(dto.origin.regionId) : undefined,
+      // Destination fields from PlaceDto
+      destinationType: dto.destination.type,
+      destinationAirportCode: dto.destination.airportCode,
+      destinationTerminal: dto.destination.terminal,
+      destinationName: dto.destination.name || getPlaceDisplayName(dto.destination),
+      destinationAddress: dto.destination.address,
+      destinationLatitude: dto.destination.latitude,
+      destinationLongitude: dto.destination.longitude,
+      destinationRegionId: dto.destination.regionId ? new Types.ObjectId(dto.destination.regionId) : undefined,
+      // Other fields
       pickupAt: new Date(dto.pickupAt),
       passengers: dto.passengers,
       luggage: dto.luggage,
@@ -313,10 +325,35 @@ export class AdminBookingsService {
     if (dto.passengerLastName) booking.passengerLastName = dto.passengerLastName;
     if (dto.passengerPhone) booking.passengerPhone = dto.passengerPhone;
     if (dto.pickupAt) booking.pickupAt = new Date(dto.pickupAt);
-    if (dto.originName) booking.originName = dto.originName;
-    if (dto.originAddress) booking.originAddress = dto.originAddress;
-    if (dto.destinationName) booking.destinationName = dto.destinationName;
-    if (dto.destinationAddress) booking.destinationAddress = dto.destinationAddress;
+
+    // Update origin if provided (using PlaceDto)
+    if (dto.origin) {
+      booking.originType = dto.origin.type;
+      booking.originAirportCode = dto.origin.airportCode;
+      booking.originTerminal = dto.origin.terminal;
+      booking.originName = dto.origin.name || getPlaceDisplayName(dto.origin);
+      booking.originAddress = dto.origin.address;
+      booking.originLatitude = dto.origin.latitude;
+      booking.originLongitude = dto.origin.longitude;
+      if (dto.origin.regionId) {
+        booking.originRegionId = new Types.ObjectId(dto.origin.regionId);
+      }
+    }
+
+    // Update destination if provided (using PlaceDto)
+    if (dto.destination) {
+      booking.destinationType = dto.destination.type;
+      booking.destinationAirportCode = dto.destination.airportCode;
+      booking.destinationTerminal = dto.destination.terminal;
+      booking.destinationName = dto.destination.name || getPlaceDisplayName(dto.destination);
+      booking.destinationAddress = dto.destination.address;
+      booking.destinationLatitude = dto.destination.latitude;
+      booking.destinationLongitude = dto.destination.longitude;
+      if (dto.destination.regionId) {
+        booking.destinationRegionId = new Types.ObjectId(dto.destination.regionId);
+      }
+    }
+
     if (dto.passengers) booking.passengers = dto.passengers;
     if (dto.luggage !== undefined) booking.luggage = dto.luggage;
     if (dto.extras) booking.extras = dto.extras;
@@ -633,6 +670,30 @@ export class AdminBookingsService {
   };
 
   private mapToDetail = (booking: SimpleBookingDocument): BookingDetailResponseDto => {
+    // Build origin PlaceResponseDto
+    const origin: PlaceResponseDto = {
+      type: (booking.originType as PlaceType) || PlaceType.ADDRESS,
+      airportCode: booking.originAirportCode,
+      terminal: booking.originTerminal,
+      name: booking.originName || 'N/A',
+      address: booking.originAddress,
+      latitude: booking.originLatitude,
+      longitude: booking.originLongitude,
+      regionId: booking.originRegionId?.toString(),
+    };
+
+    // Build destination PlaceResponseDto
+    const destination: PlaceResponseDto = {
+      type: (booking.destinationType as PlaceType) || PlaceType.ADDRESS,
+      airportCode: booking.destinationAirportCode,
+      terminal: booking.destinationTerminal,
+      name: booking.destinationName || 'N/A',
+      address: booking.destinationAddress,
+      latitude: booking.destinationLatitude,
+      longitude: booking.destinationLongitude,
+      regionId: booking.destinationRegionId?.toString(),
+    };
+
     return {
       _id: booking._id.toString(),
       bookingId: booking.bookingId,
@@ -643,13 +704,9 @@ export class AdminBookingsService {
       passengerLastName: booking.passengerLastName,
       passengerPhone: booking.passengerPhone,
       originName: booking.originName || 'N/A',
-      originAddress: booking.originAddress,
-      originLatitude: booking.originLatitude,
-      originLongitude: booking.originLongitude,
       destinationName: booking.destinationName || 'N/A',
-      destinationAddress: booking.destinationAddress,
-      destinationLatitude: booking.destinationLatitude,
-      destinationLongitude: booking.destinationLongitude,
+      origin,
+      destination,
       pickupAt: booking.pickupAt,
       actualPickupAt: booking.actualPickupAt,
       actualDropoffAt: booking.actualDropoffAt,

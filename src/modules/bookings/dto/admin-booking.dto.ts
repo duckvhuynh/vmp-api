@@ -16,6 +16,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { BookingStatus } from '../schemas/simple-booking.schema';
+import { PlaceDto, PlaceResponseDto } from '../../../common/dto/place.dto';
+
+// Re-export for convenience
+export { PlaceDto, PlaceResponseDto } from '../../../common/dto/place.dto';
 
 // ============ Create DTO ============
 
@@ -40,57 +44,37 @@ export class AdminCreateBookingDto {
   @IsEmail()
   passengerEmail?: string;
 
-  @ApiProperty({ description: 'Origin/Pickup name', example: 'Sir Seewoosagur Ramgoolam International Airport' })
-  @IsString()
-  @IsNotEmpty()
-  originName!: string;
+  @ApiProperty({
+    type: PlaceDto,
+    description: 'Origin/Pickup location',
+    example: {
+      type: 'airport',
+      airportCode: 'MRU',
+      terminal: 'T1',
+      name: 'Sir Seewoosagur Ramgoolam International Airport',
+      address: 'Plaine Magnien, Mauritius',
+      latitude: -20.4302,
+      longitude: 57.6836,
+    },
+  })
+  @ValidateNested()
+  @Type(() => PlaceDto)
+  origin!: PlaceDto;
 
-  @ApiPropertyOptional({ description: 'Origin full address' })
-  @IsOptional()
-  @IsString()
-  originAddress?: string;
-
-  @ApiPropertyOptional({ description: 'Origin latitude', example: -20.4302 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(-90)
-  @Max(90)
-  originLatitude?: number;
-
-  @ApiPropertyOptional({ description: 'Origin longitude', example: 57.6836 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(-180)
-  @Max(180)
-  originLongitude?: number;
-
-  @ApiProperty({ description: 'Destination name', example: 'Le Morne Beach' })
-  @IsString()
-  @IsNotEmpty()
-  destinationName!: string;
-
-  @ApiPropertyOptional({ description: 'Destination full address' })
-  @IsOptional()
-  @IsString()
-  destinationAddress?: string;
-
-  @ApiPropertyOptional({ description: 'Destination latitude', example: -20.4499 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(-90)
-  @Max(90)
-  destinationLatitude?: number;
-
-  @ApiPropertyOptional({ description: 'Destination longitude', example: 57.3174 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(-180)
-  @Max(180)
-  destinationLongitude?: number;
+  @ApiProperty({
+    type: PlaceDto,
+    description: 'Destination location',
+    example: {
+      type: 'address',
+      name: 'Le Morne Beach',
+      address: 'Le Morne, Mauritius',
+      latitude: -20.4499,
+      longitude: 57.3174,
+    },
+  })
+  @ValidateNested()
+  @Type(() => PlaceDto)
+  destination!: PlaceDto;
 
   @ApiProperty({ description: 'Pickup date/time (ISO string)', example: '2025-12-01T10:00:00.000Z' })
   @IsDateString()
@@ -351,25 +335,23 @@ export class AdminUpdateBookingDto {
   @IsDateString()
   pickupAt?: string;
 
-  @ApiPropertyOptional({ description: 'Origin name' })
+  @ApiPropertyOptional({
+    type: PlaceDto,
+    description: 'Updated origin location',
+  })
   @IsOptional()
-  @IsString()
-  originName?: string;
+  @ValidateNested()
+  @Type(() => PlaceDto)
+  origin?: PlaceDto;
 
-  @ApiPropertyOptional({ description: 'Origin address' })
+  @ApiPropertyOptional({
+    type: PlaceDto,
+    description: 'Updated destination location',
+  })
   @IsOptional()
-  @IsString()
-  originAddress?: string;
-
-  @ApiPropertyOptional({ description: 'Destination name' })
-  @IsOptional()
-  @IsString()
-  destinationName?: string;
-
-  @ApiPropertyOptional({ description: 'Destination address' })
-  @IsOptional()
-  @IsString()
-  destinationAddress?: string;
+  @ValidateNested()
+  @Type(() => PlaceDto)
+  destination?: PlaceDto;
 
   @ApiPropertyOptional({ description: 'Number of passengers' })
   @IsOptional()
@@ -515,23 +497,33 @@ export class BookingDetailResponseDto extends BookingListItemDto {
   @ApiProperty({ example: 'Doe' })
   passengerLastName!: string;
 
-  @ApiPropertyOptional({ example: 'Dubai International Airport' })
-  originAddress?: string;
+  @ApiProperty({
+    type: PlaceResponseDto,
+    description: 'Origin location details',
+    example: {
+      type: 'airport',
+      airportCode: 'MRU',
+      terminal: 'T1',
+      name: 'SSR International Airport',
+      address: 'Plaine Magnien, Mauritius',
+      latitude: -20.4302,
+      longitude: 57.6836,
+    },
+  })
+  origin!: PlaceResponseDto;
 
-  @ApiPropertyOptional({ example: 25.2532 })
-  originLatitude?: number;
-
-  @ApiPropertyOptional({ example: 55.3644 })
-  originLongitude?: number;
-
-  @ApiPropertyOptional({ example: 'Downtown Dubai Hotel' })
-  destinationAddress?: string;
-
-  @ApiPropertyOptional({ example: 25.1972 })
-  destinationLatitude?: number;
-
-  @ApiPropertyOptional({ example: 55.2744 })
-  destinationLongitude?: number;
+  @ApiProperty({
+    type: PlaceResponseDto,
+    description: 'Destination location details',
+    example: {
+      type: 'address',
+      name: 'Le Morne Beach',
+      address: 'Le Morne, Mauritius',
+      latitude: -20.4499,
+      longitude: 57.3174,
+    },
+  })
+  destination!: PlaceResponseDto;
 
   @ApiProperty({ example: 2 })
   passengers!: number;

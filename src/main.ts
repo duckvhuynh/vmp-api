@@ -72,16 +72,32 @@ async function bootstrap() {
       }
     }
 
-    const swaggerConfig = new DocumentBuilder()
+    // Build Swagger config with dynamic servers based on environment
+    const swaggerBuilder = new DocumentBuilder()
       .setTitle('VMP API')
       .setDescription('Airport Taxi Booking System API — Swagger Docs')
       .setVersion('0.1.0')
-      .setContact('Airport Mobility', 'https://example.com', 'support@example.com')
+      .setContact('Visit Mauritius Paradise', 'https://visitmauritiusparadise.com', 'support@visitmauritiusparadise.com')
       .setLicense('MIT', 'https://opensource.org/licenses/MIT')
-      .addServer('http://localhost:3000', 'Local (container default)')
-      .addServer('http://localhost:3001', 'Local (host mapped via compose)')
-      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
-      .build();
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT');
+
+    // Add servers based on environment
+    const apiUrl = process.env.API_URL;
+    const nodeEnv = process.env.NODE_ENV || 'development';
+
+    if (apiUrl) {
+      // If API_URL is set, use it as the primary server
+      swaggerBuilder.addServer(apiUrl, 'API Server');
+    } else if (nodeEnv === 'production') {
+      // Production defaults
+      swaggerBuilder.addServer('https://api.visitmauritiusparadise.com', 'Production');
+    } else {
+      // Development servers
+      swaggerBuilder.addServer('http://localhost:3000', 'Local Development');
+      swaggerBuilder.addServer('http://localhost:3001', 'Docker Compose');
+    }
+
+    const swaggerConfig = swaggerBuilder.build();
     const document = SwaggerModule.createDocument(app, swaggerConfig, {
       deepScanRoutes: true,
     });

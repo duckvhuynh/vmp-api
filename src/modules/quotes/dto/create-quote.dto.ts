@@ -1,48 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min, Max, IsEnum, IsMongoId, ValidateNested } from 'class-validator';
+import { IsArray, IsDateString, IsInt, IsNumber, IsOptional, IsString, Min, Max, IsEnum, ValidateNested } from 'class-validator';
 import { VehicleClass } from '../../pricing/schemas/base-price.schema';
+import { PlaceDto } from '../../../common/dto/place.dto';
 
-export class PlaceDto {
-  @ApiProperty({ enum: ['airport', 'address'], example: 'airport' })
-  @IsString()
-  @IsNotEmpty()
-  type!: 'airport' | 'address';
-
-  @ApiPropertyOptional({ example: 'MRU', description: 'IATA code when type=airport' })
-  @IsOptional()
-  @IsString()
-  airportCode?: string;
-
-  @ApiPropertyOptional({ example: 'T1' })
-  @IsOptional()
-  @IsString()
-  terminal?: string;
-
-  @ApiPropertyOptional({ example: 'Port Louis, Mauritius' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ example: -20.4317, description: 'Latitude coordinate' })
-  @IsOptional()
-  @IsNumber()
-  @Min(-90)
-  @Max(90)
-  latitude?: number;
-
-  @ApiPropertyOptional({ example: 57.5529, description: 'Longitude coordinate' })
-  @IsOptional()
-  @IsNumber()
-  @Min(-180)
-  @Max(180)
-  longitude?: number;
-
-  @ApiPropertyOptional({ description: 'Pre-determined region ID if known' })
-  @IsOptional()
-  @IsMongoId()
-  regionId?: string;
-}
+// Re-export PlaceDto for backwards compatibility
+export { PlaceDto } from '../../../common/dto/place.dto';
 
 export class CreateQuoteDto {
   @ApiProperty({ type: PlaceDto, description: 'Origin place (airport or address)' })

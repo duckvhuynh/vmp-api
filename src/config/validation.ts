@@ -3,6 +3,8 @@ import * as Joi from 'joi';
 export const validationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
   PORT: Joi.number().default(3000),
+  // API URL for Swagger docs (optional - auto-detected if not set)
+  API_URL: Joi.string().uri().allow(''),
   // Accept both MONGODB_URI and MONGO_URI for flexibility
   // Make validation lenient - just check it's a string (fix double @@ in configuration.ts)
   MONGODB_URI: Joi.string().allow(''),
