@@ -5,12 +5,14 @@ import { BookingsService } from './bookings.service';
 import { AdminBookingsController } from './controllers/admin-bookings.controller';
 import { AdminBookingsService } from './services/admin-bookings.service';
 import { SimpleBooking, SimpleBookingSchema } from './schemas/simple-booking.schema';
+import { SimpleDriver, SimpleDriverSchema } from '../drivers/schemas/simple-driver.schema';
 import { QuotesModule } from '../quotes/quotes.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: SimpleBooking.name, schema: SimpleBookingSchema }
+      { name: SimpleBooking.name, schema: SimpleBookingSchema },
+      { name: SimpleDriver.name, schema: SimpleDriverSchema },
     ]),
     QuotesModule,
   ],

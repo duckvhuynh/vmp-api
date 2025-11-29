@@ -8,6 +8,8 @@ import {
   BookingQueryDto,
   UpdateBookingStatusDto,
   AssignDriverDto,
+  AutoAssignDriverDto,
+  AutoAssignResultDto,
   AdminUpdateBookingDto,
   AdminCancelBookingDto,
   AddBookingEventDto,
@@ -16,6 +18,7 @@ import {
   BookingStatsDto,
   BookingListItemDto,
 } from '../dto/admin-booking.dto';
+import { SimpleDriver, SimpleDriverDocument } from '../../drivers/schemas/simple-driver.schema';
 import { PlaceDto, PlaceResponseDto, PlaceType, getPlaceDisplayName } from '../../../common/dto/place.dto';
 
 @Injectable()
@@ -24,6 +27,7 @@ export class AdminBookingsService {
 
   constructor(
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
+    @InjectModel(SimpleDriver.name) private driverModel: Model<SimpleDriverDocument>,
   ) {}
 
   /**
@@ -275,17 +279,264 @@ export class AdminBookingsService {
     booking.status = BookingStatus.DRIVER_ASSIGNED;
     booking.updatedAt = new Date();
 
+    // Update pricing if provided
+    if (dto.baseFare !== undefined) booking.baseFare = dto.baseFare;
+    if (dto.distanceCharge !== undefined) booking.distanceCharge = dto.distanceCharge;
+    if (dto.timeCharge !== undefined) booking.timeCharge = dto.timeCharge;
+    if (dto.airportFees !== undefined) booking.airportFees = dto.airportFees;
+    if (dto.surcharges !== undefined) booking.surcharges = dto.surcharges;
+    if (dto.extrasTotal !== undefined) booking.extrasTotal = dto.extrasTotal;
+
+    // Update total - either use provided total or calculate from components
+    if (dto.total !== undefined) {
+      booking.total = dto.total;
+    } else if (dto.baseFare !== undefined || dto.distanceCharge !== undefined || 
+               dto.timeCharge !== undefined || dto.airportFees !== undefined || 
+               dto.surcharges !== undefined || dto.extrasTotal !== undefined) {
+      // Recalculate total if any pricing component was updated
+      booking.total = (booking.baseFare || 0) + 
+                      (booking.distanceCharge || 0) + 
+                      (booking.timeCharge || 0) + 
+                      (booking.airportFees || 0) + 
+                      (booking.surcharges || 0) + 
+                      (booking.extrasTotal || 0);
+    }
+
+    // Handle payment confirmation
+    if (dto.paymentConfirmed) {
+      booking.paymentConfirmedAt = new Date();
+      if (dto.paymentMethod) {
+        booking.paymentMethodId = dto.paymentMethod;
+      }
+    }
+
+    // Build event description
+    let eventDescription = dto.notes || 'Driver assigned by admin';
+    if (dto.total !== undefined || dto.baseFare !== undefined) {
+      eventDescription += ` (Price: ${booking.total} ${booking.currency})`;
+    }
+    if (dto.paymentConfirmed) {
+      eventDescription += ` - Payment confirmed (${dto.paymentMethod || 'manual'})`;
+    }
+
     // Add event
     booking.events.push({
       event: BookingEventName.DRIVER_ASSIGNED,
       status: BookingStatus.DRIVER_ASSIGNED,
       timestamp: new Date(),
-      description: dto.notes || 'Driver assigned by admin',
+      description: eventDescription,
       driverId: new Types.ObjectId(dto.driverId),
     });
 
+    // Add payment event if confirmed
+    if (dto.paymentConfirmed) {
+      booking.events.push({
+        event: BookingEventName.PAYMENT_SUCCESS,
+        status: booking.status,
+        timestamp: new Date(),
+        description: `Payment confirmed (${dto.paymentMethod || 'manual'}) - ${booking.total} ${booking.currency}`,
+      });
+    }
+
     await booking.save();
     return this.mapToDetail(booking);
+  }
+
+  /**
+   * Auto-assign the best available driver to a booking
+   * Finds drivers within radius, sorted by distance
+   */
+  async autoAssignDriver(id: string, dto: AutoAssignDriverDto): Promise<AutoAssignResultDto> {
+    const booking = await this.findBookingById(id);
+
+    // Validate booking status
+    if (![BookingStatus.CONFIRMED, BookingStatus.PENDING_PAYMENT, BookingStatus.DRIVER_DECLINED].includes(booking.status)) {
+      throw new BadRequestException(`Cannot auto-assign driver to booking with status ${booking.status}`);
+    }
+
+    // Check if driver is already assigned
+    if (booking.assignedDriver) {
+      throw new BadRequestException('Driver is already assigned to this booking. Unassign first or use reassign.');
+    }
+
+    // Get pickup location
+    const pickupLat = booking.originLatitude;
+    const pickupLon = booking.originLongitude;
+
+    if (!pickupLat || !pickupLon) {
+      throw new BadRequestException('Booking does not have pickup coordinates for auto-assignment');
+    }
+
+    const radiusKm = dto.radiusKm || 10;
+    const maxDrivers = dto.maxDrivers || 5;
+    const vehicleClass = dto.vehicleClass || booking.vehicleClass;
+
+    // Find available drivers
+    const availableDrivers = await this.findAvailableDrivers(
+      pickupLat,
+      pickupLon,
+      radiusKm,
+      vehicleClass,
+      maxDrivers,
+    );
+
+    if (availableDrivers.length === 0) {
+      this.logger.warn(`No available drivers found for booking ${booking.bookingId} within ${radiusKm}km`);
+      return {
+        success: false,
+        message: `No available drivers found within ${radiusKm}km radius`,
+        driversConsidered: 0,
+      };
+    }
+
+    // Assign the closest driver
+    const selectedDriver = availableDrivers[0];
+    const distanceKm = selectedDriver.distance;
+
+    // Update booking
+    booking.assignedDriver = selectedDriver.driver._id;
+    booking.status = BookingStatus.DRIVER_ASSIGNED;
+    booking.updatedAt = new Date();
+
+    // Update pricing if provided
+    if (dto.baseFare !== undefined) booking.baseFare = dto.baseFare;
+    if (dto.distanceCharge !== undefined) booking.distanceCharge = dto.distanceCharge;
+    if (dto.timeCharge !== undefined) booking.timeCharge = dto.timeCharge;
+    if (dto.airportFees !== undefined) booking.airportFees = dto.airportFees;
+    if (dto.surcharges !== undefined) booking.surcharges = dto.surcharges;
+    if (dto.extrasTotal !== undefined) booking.extrasTotal = dto.extrasTotal;
+
+    // Update total
+    if (dto.total !== undefined) {
+      booking.total = dto.total;
+    } else if (dto.baseFare !== undefined || dto.distanceCharge !== undefined || 
+               dto.timeCharge !== undefined || dto.airportFees !== undefined || 
+               dto.surcharges !== undefined || dto.extrasTotal !== undefined) {
+      booking.total = (booking.baseFare || 0) + 
+                      (booking.distanceCharge || 0) + 
+                      (booking.timeCharge || 0) + 
+                      (booking.airportFees || 0) + 
+                      (booking.surcharges || 0) + 
+                      (booking.extrasTotal || 0);
+    }
+
+    // Handle payment confirmation
+    if (dto.paymentConfirmed) {
+      booking.paymentConfirmedAt = new Date();
+      if (dto.paymentMethod) {
+        booking.paymentMethodId = dto.paymentMethod;
+      }
+    }
+
+    // Build event description
+    let eventDescription = `Driver auto-assigned: ${selectedDriver.driver.firstName} ${selectedDriver.driver.lastName} (${distanceKm.toFixed(1)}km away)`;
+    if (dto.total !== undefined || dto.baseFare !== undefined) {
+      eventDescription += ` - Price: ${booking.total} ${booking.currency}`;
+    }
+
+    // Add event
+    booking.events.push({
+      event: BookingEventName.DRIVER_ASSIGNED,
+      status: BookingStatus.DRIVER_ASSIGNED,
+      timestamp: new Date(),
+      description: eventDescription,
+      driverId: selectedDriver.driver._id,
+    });
+
+    // Add payment event if confirmed
+    if (dto.paymentConfirmed) {
+      booking.events.push({
+        event: BookingEventName.PAYMENT_SUCCESS,
+        status: booking.status,
+        timestamp: new Date(),
+        description: `Payment confirmed (${dto.paymentMethod || 'manual'}) - ${booking.total} ${booking.currency}`,
+      });
+    }
+
+    await booking.save();
+
+    this.logger.log(`Auto-assigned driver ${selectedDriver.driver._id} to booking ${booking.bookingId}`);
+
+    return {
+      success: true,
+      assignedDriverId: selectedDriver.driver._id.toString(),
+      driverName: `${selectedDriver.driver.firstName} ${selectedDriver.driver.lastName}`,
+      driverPhone: selectedDriver.driver.phone,
+      message: 'Driver auto-assigned successfully',
+      driversConsidered: availableDrivers.length,
+      distanceKm,
+    };
+  }
+
+  /**
+   * Find available drivers within radius
+   */
+  private async findAvailableDrivers(
+    latitude: number,
+    longitude: number,
+    radiusKm: number,
+    vehicleClass: string,
+    limit: number,
+  ): Promise<Array<{ driver: SimpleDriverDocument; distance: number }>> {
+    // Find all online, available, active, verified drivers
+    const drivers = await this.driverModel.find({
+      status: 'online',
+      availability: 'available',
+      isActive: true,
+      isVerified: true,
+    }).exec();
+
+    // Calculate distance and filter by radius
+    const driversWithDistance: Array<{ driver: SimpleDriverDocument; distance: number }> = [];
+
+    for (const driver of drivers) {
+      if (!driver.latitude || !driver.longitude) continue;
+
+      const distance = this.calculateDistanceKm(
+        latitude,
+        longitude,
+        driver.latitude,
+        driver.longitude,
+      );
+
+      if (distance <= radiusKm) {
+        // Optionally filter by vehicle class if driver has vehicle info
+        // For now, include all available drivers
+        driversWithDistance.push({ driver, distance });
+      }
+    }
+
+    // Sort by distance (closest first)
+    driversWithDistance.sort((a, b) => a.distance - b.distance);
+
+    // Return limited results
+    return driversWithDistance.slice(0, limit);
+  }
+
+  /**
+   * Calculate distance between two points using Haversine formula
+   */
+  private calculateDistanceKm(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRad(deg: number): number {
+    return deg * (Math.PI / 180);
   }
 
   /**

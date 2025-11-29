@@ -29,6 +29,8 @@ import {
   BookingQueryDto,
   UpdateBookingStatusDto,
   AssignDriverDto,
+  AutoAssignDriverDto,
+  AutoAssignResultDto,
   AdminUpdateBookingDto,
   AdminCancelBookingDto,
   AddBookingEventDto,
@@ -232,8 +234,8 @@ export class AdminBookingsController {
   @Post(':id/assign-driver')
   @Roles('admin', 'dispatcher')
   @ApiOperation({
-    summary: 'Assign driver to booking',
-    description: 'Assign a specific driver to handle the booking',
+    summary: 'Manually assign driver to booking',
+    description: 'Assign a specific driver (by ID) to handle the booking. Use this when you want to pick a specific driver.',
   })
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({
@@ -248,6 +250,38 @@ export class AdminBookingsController {
     @Body() dto: AssignDriverDto,
   ): Promise<BookingDetailResponseDto> {
     return this.adminBookingsService.assignDriver(id, dto);
+  }
+
+  @Post(':id/auto-assign')
+  @Roles('admin', 'dispatcher')
+  @ApiOperation({
+    summary: 'Auto-assign nearest available driver',
+    description: `
+      Automatically find and assign the best available driver based on:
+      - Distance from pickup location
+      - Driver availability (online + available)
+      - Driver verification status
+      
+      The system will find drivers within the specified radius and assign the closest one.
+      
+      **Use cases:**
+      - Quick assignment without manually searching for drivers
+      - Automated dispatch for incoming bookings
+    `,
+  })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Auto-assignment result',
+    type: AutoAssignResultDto,
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Booking not found' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Cannot auto-assign driver to booking with current status' })
+  async autoAssignDriver(
+    @Param('id') id: string,
+    @Body() dto: AutoAssignDriverDto,
+  ): Promise<AutoAssignResultDto> {
+    return this.adminBookingsService.autoAssignDriver(id, dto);
   }
 
   @Post(':id/unassign-driver')

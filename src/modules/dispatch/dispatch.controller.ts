@@ -3,7 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@ne
 import { DispatchService, AssignDriverRequest, AssignDriverResponse } from './services/dispatch.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 
-@ApiTags('Dispatch')
+/**
+ * @deprecated Use /admin/bookings/:id/auto-assign and /admin/bookings/:id/assign-driver instead
+ * This controller is kept for backwards compatibility but will be removed in a future version.
+ */
+@ApiTags('Dispatch (Deprecated)')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('dispatch')
@@ -12,8 +16,8 @@ export class DispatchController {
 
   @Post('assign')
   @ApiOperation({ 
-    summary: 'Assign driver to booking',
-    description: 'Automatically assign the best available driver to a confirmed booking'
+    summary: '[DEPRECATED] Assign driver to booking',
+    description: '**DEPRECATED**: Use POST /admin/bookings/:id/auto-assign instead. Automatically assign the best available driver to a confirmed booking.'
   })
   @ApiResponse({ 
     status: 200, 
@@ -39,8 +43,8 @@ export class DispatchController {
 
   @Post('reassign')
   @ApiOperation({ 
-    summary: 'Reassign driver to booking',
-    description: 'Reassign a different driver to an existing booking'
+    summary: '[DEPRECATED] Reassign driver to booking',
+    description: '**DEPRECATED**: Use POST /admin/bookings/:id/unassign-driver then POST /admin/bookings/:id/assign-driver instead. Reassign a different driver to an existing booking.'
   })
   @ApiResponse({ 
     status: 200, 

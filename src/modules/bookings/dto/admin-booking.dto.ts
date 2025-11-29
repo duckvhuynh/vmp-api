@@ -315,6 +315,172 @@ export class AssignDriverDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Payment/Pricing fields
+  @ApiPropertyOptional({ description: 'Update base fare amount', example: 500 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  baseFare?: number;
+
+  @ApiPropertyOptional({ description: 'Update distance charge', example: 350 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  distanceCharge?: number;
+
+  @ApiPropertyOptional({ description: 'Update time charge', example: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  timeCharge?: number;
+
+  @ApiPropertyOptional({ description: 'Update airport fees', example: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  airportFees?: number;
+
+  @ApiPropertyOptional({ description: 'Update surcharges', example: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  surcharges?: number;
+
+  @ApiPropertyOptional({ description: 'Update extras total', example: 200 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  extrasTotal?: number;
+
+  @ApiPropertyOptional({ description: 'Update total amount (if not provided, will be calculated from components)', example: 1200 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  total?: number;
+
+  @ApiPropertyOptional({ description: 'Mark payment as confirmed', default: false })
+  @IsOptional()
+  @IsBoolean()
+  paymentConfirmed?: boolean;
+
+  @ApiPropertyOptional({ description: 'Payment method', example: 'cash' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+}
+
+export class AutoAssignDriverDto {
+  @ApiPropertyOptional({ description: 'Search radius in kilometers', example: 10, default: 10 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  radiusKm?: number;
+
+  @ApiPropertyOptional({ description: 'Maximum drivers to consider', example: 5, default: 5 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  maxDrivers?: number;
+
+  @ApiPropertyOptional({ description: 'Vehicle class filter (if different from booking)' })
+  @IsOptional()
+  @IsString()
+  vehicleClass?: string;
+
+  // Payment/Pricing fields
+  @ApiPropertyOptional({ description: 'Update base fare amount', example: 500 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  baseFare?: number;
+
+  @ApiPropertyOptional({ description: 'Update distance charge', example: 350 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  distanceCharge?: number;
+
+  @ApiPropertyOptional({ description: 'Update time charge', example: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  timeCharge?: number;
+
+  @ApiPropertyOptional({ description: 'Update airport fees', example: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  airportFees?: number;
+
+  @ApiPropertyOptional({ description: 'Update surcharges', example: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  surcharges?: number;
+
+  @ApiPropertyOptional({ description: 'Update extras total', example: 200 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  extrasTotal?: number;
+
+  @ApiPropertyOptional({ description: 'Update total amount', example: 1200 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  total?: number;
+
+  @ApiPropertyOptional({ description: 'Mark payment as confirmed', default: false })
+  @IsOptional()
+  @IsBoolean()
+  paymentConfirmed?: boolean;
+
+  @ApiPropertyOptional({ description: 'Payment method', example: 'cash' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+}
+
+export class AutoAssignResultDto {
+  @ApiProperty({ example: true })
+  success!: boolean;
+
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011' })
+  assignedDriverId?: string;
+
+  @ApiPropertyOptional({ example: 'John Doe' })
+  driverName?: string;
+
+  @ApiPropertyOptional({ example: '+23057123456' })
+  driverPhone?: string;
+
+  @ApiProperty({ example: 'Driver assigned successfully' })
+  message!: string;
+
+  @ApiPropertyOptional({ example: 3 })
+  driversConsidered?: number;
+
+  @ApiPropertyOptional({ example: 2.5, description: 'Distance to pickup in km' })
+  distanceKm?: number;
 }
 
 export class UpdateBookingNotesDto {
