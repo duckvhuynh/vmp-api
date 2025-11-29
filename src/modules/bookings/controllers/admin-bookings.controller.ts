@@ -9,7 +9,9 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -23,6 +25,7 @@ import { RolesGuard } from '../../../common/roles.guard';
 import { Roles } from '../../../common/roles.decorator';
 import { AdminBookingsService } from '../services/admin-bookings.service';
 import {
+  AdminCreateBookingDto,
   BookingQueryDto,
   UpdateBookingStatusDto,
   AssignDriverDto,
@@ -41,6 +44,43 @@ import {
 @ApiBearerAuth()
 export class AdminBookingsController {
   constructor(private readonly adminBookingsService: AdminBookingsService) {}
+
+  @Post()
+  @Roles('admin', 'dispatcher')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create a new booking',
+    description: `
+      Create a booking manually (for phone bookings, walk-in customers, or on behalf of users).
+      
+      **Use cases:**
+      - Customer calls in to book
+      - Walk-in customer at counter
+      - Admin creates booking on behalf of customer
+      - Manual booking with custom pricing
+      
+      **Notes:**
+      - If no userId is provided, the booking is associated with the admin user
+      - Status defaults to 'confirmed' for admin bookings
+      - If assignedDriverId is provided, status is set to 'driver_assigned'
+      - Set paymentConfirmed: true for cash payments or pre-paid bookings
+    `,
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Booking created successfully',
+    type: BookingDetailResponseDto,
+  })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid booking data' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Forbidden - Admin/Dispatcher access required' })
+  async create(
+    @Body() dto: AdminCreateBookingDto,
+    @Req() req: Request,
+  ): Promise<BookingDetailResponseDto> {
+    const user = req.user as { userId: string };
+    return this.adminBookingsService.create(dto, user.userId);
+  }
 
   @Get()
   @Roles('admin', 'dispatcher')

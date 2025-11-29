@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, FilterQuery } from 'mongoose';
+import { randomUUID } from 'crypto';
 import { SimpleBooking, SimpleBookingDocument, BookingStatus, BookingEventName } from '../schemas/simple-booking.schema';
 import {
+  AdminCreateBookingDto,
   BookingQueryDto,
   UpdateBookingStatusDto,
   AssignDriverDto,
@@ -17,9 +19,105 @@ import {
 
 @Injectable()
 export class AdminBookingsService {
+  private readonly logger = new Logger(AdminBookingsService.name);
+
   constructor(
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
   ) {}
+
+  /**
+   * Create a new booking (admin)
+   * Used for phone bookings, walk-in customers, or manual bookings
+   */
+  async create(dto: AdminCreateBookingDto, adminUserId: string): Promise<BookingDetailResponseDto> {
+    this.logger.log(`Admin ${adminUserId} creating booking for ${dto.passengerFirstName} ${dto.passengerLastName}`);
+
+    // Generate unique booking ID
+    const timestamp = new Date();
+    const dateStr = timestamp.toISOString().slice(0, 10).replace(/-/g, '');
+    const uniqueId = randomUUID().substring(0, 6).toUpperCase();
+    const bookingId = `BK-${dateStr}-${uniqueId}`;
+
+    // Determine initial status
+    let status = dto.status || BookingStatus.CONFIRMED;
+    if (dto.assignedDriverId) {
+      status = BookingStatus.DRIVER_ASSIGNED;
+    }
+
+    // Create booking
+    const booking = new this.bookingModel({
+      bookingId,
+      status,
+      userId: dto.userId ? new Types.ObjectId(dto.userId) : new Types.ObjectId(adminUserId), // Use admin ID if no user specified
+      passengerFirstName: dto.passengerFirstName,
+      passengerLastName: dto.passengerLastName,
+      passengerPhone: dto.passengerPhone,
+      originName: dto.originName,
+      originAddress: dto.originAddress,
+      originLatitude: dto.originLatitude,
+      originLongitude: dto.originLongitude,
+      destinationName: dto.destinationName,
+      destinationAddress: dto.destinationAddress,
+      destinationLatitude: dto.destinationLatitude,
+      destinationLongitude: dto.destinationLongitude,
+      pickupAt: new Date(dto.pickupAt),
+      passengers: dto.passengers,
+      luggage: dto.luggage,
+      extras: dto.extras || [],
+      vehicleClass: dto.vehicleClass,
+      vehicleName: dto.vehicleName || dto.vehicleClass,
+      vehicleCapacity: dto.vehicleCapacity || 4,
+      vehicleBagCapacity: dto.vehicleBagCapacity || 2,
+      baseFare: dto.baseFare,
+      distanceCharge: dto.distanceCharge,
+      timeCharge: dto.timeCharge,
+      airportFees: dto.airportFees,
+      surcharges: dto.surcharges,
+      extrasTotal: dto.extrasTotal,
+      total: dto.total,
+      currency: dto.currency || 'MUR',
+      assignedDriver: dto.assignedDriverId ? new Types.ObjectId(dto.assignedDriverId) : undefined,
+      paymentConfirmedAt: dto.paymentConfirmed ? new Date() : undefined,
+      paymentMethodId: dto.paymentMethod,
+      events: [
+        {
+          event: BookingEventName.CREATED,
+          status,
+          timestamp: new Date(),
+          description: dto.adminNotes || `Booking created by admin`,
+        },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Add driver assigned event if driver was assigned
+    if (dto.assignedDriverId) {
+      booking.events.push({
+        event: BookingEventName.DRIVER_ASSIGNED,
+        status: BookingStatus.DRIVER_ASSIGNED,
+        timestamp: new Date(),
+        description: 'Driver assigned by admin during booking creation',
+        driverId: new Types.ObjectId(dto.assignedDriverId),
+      });
+    }
+
+    // Add payment confirmed event if payment was confirmed
+    if (dto.paymentConfirmed) {
+      booking.events.push({
+        event: BookingEventName.PAYMENT_SUCCESS,
+        status: booking.status,
+        timestamp: new Date(),
+        description: `Payment confirmed (${dto.paymentMethod || 'manual'})`,
+      });
+    }
+
+    await booking.save();
+
+    this.logger.log(`Booking ${bookingId} created successfully`);
+
+    return this.mapToDetail(booking);
+  }
 
   /**
    * Get all bookings with filtering and pagination

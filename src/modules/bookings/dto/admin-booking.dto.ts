@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsEnum,
@@ -15,6 +16,212 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { BookingStatus } from '../schemas/simple-booking.schema';
+
+// ============ Create DTO ============
+
+export class AdminCreateBookingDto {
+  @ApiProperty({ description: 'Passenger first name', example: 'John' })
+  @IsString()
+  @IsNotEmpty()
+  passengerFirstName!: string;
+
+  @ApiProperty({ description: 'Passenger last name', example: 'Doe' })
+  @IsString()
+  @IsNotEmpty()
+  passengerLastName!: string;
+
+  @ApiProperty({ description: 'Passenger phone number', example: '+23057123456' })
+  @IsString()
+  @IsNotEmpty()
+  passengerPhone!: string;
+
+  @ApiPropertyOptional({ description: 'Passenger email', example: 'john@example.com' })
+  @IsOptional()
+  @IsEmail()
+  passengerEmail?: string;
+
+  @ApiProperty({ description: 'Origin/Pickup name', example: 'Sir Seewoosagur Ramgoolam International Airport' })
+  @IsString()
+  @IsNotEmpty()
+  originName!: string;
+
+  @ApiPropertyOptional({ description: 'Origin full address' })
+  @IsOptional()
+  @IsString()
+  originAddress?: string;
+
+  @ApiPropertyOptional({ description: 'Origin latitude', example: -20.4302 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  originLatitude?: number;
+
+  @ApiPropertyOptional({ description: 'Origin longitude', example: 57.6836 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  originLongitude?: number;
+
+  @ApiProperty({ description: 'Destination name', example: 'Le Morne Beach' })
+  @IsString()
+  @IsNotEmpty()
+  destinationName!: string;
+
+  @ApiPropertyOptional({ description: 'Destination full address' })
+  @IsOptional()
+  @IsString()
+  destinationAddress?: string;
+
+  @ApiPropertyOptional({ description: 'Destination latitude', example: -20.4499 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  destinationLatitude?: number;
+
+  @ApiPropertyOptional({ description: 'Destination longitude', example: 57.3174 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  destinationLongitude?: number;
+
+  @ApiProperty({ description: 'Pickup date/time (ISO string)', example: '2025-12-01T10:00:00.000Z' })
+  @IsDateString()
+  pickupAt!: string;
+
+  @ApiProperty({ description: 'Number of passengers', example: 2, minimum: 1 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  passengers!: number;
+
+  @ApiProperty({ description: 'Number of luggage items', example: 2, minimum: 0 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  luggage!: number;
+
+  @ApiPropertyOptional({ description: 'Extras requested', type: [String], example: ['child_seat'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  extras?: string[];
+
+  @ApiProperty({ description: 'Vehicle class', example: 'economy' })
+  @IsString()
+  @IsNotEmpty()
+  vehicleClass!: string;
+
+  @ApiPropertyOptional({ description: 'Vehicle display name', example: 'Economy Sedan' })
+  @IsOptional()
+  @IsString()
+  vehicleName?: string;
+
+  @ApiPropertyOptional({ description: 'Vehicle passenger capacity', example: 4 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  vehicleCapacity?: number;
+
+  @ApiPropertyOptional({ description: 'Vehicle luggage capacity', example: 2 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  vehicleBagCapacity?: number;
+
+  @ApiProperty({ description: 'Base fare amount', example: 500 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  baseFare!: number;
+
+  @ApiPropertyOptional({ description: 'Distance charge', example: 350 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  distanceCharge?: number;
+
+  @ApiPropertyOptional({ description: 'Time charge', example: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  timeCharge?: number;
+
+  @ApiPropertyOptional({ description: 'Airport fees', example: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  airportFees?: number;
+
+  @ApiPropertyOptional({ description: 'Surcharges', example: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  surcharges?: number;
+
+  @ApiPropertyOptional({ description: 'Extras total', example: 200 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  extrasTotal?: number;
+
+  @ApiProperty({ description: 'Total amount', example: 1200 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  total!: number;
+
+  @ApiPropertyOptional({ description: 'Currency code', example: 'MUR', default: 'MUR' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Initial booking status (defaults to confirmed for admin bookings)',
+    enum: BookingStatus,
+    default: BookingStatus.CONFIRMED
+  })
+  @IsOptional()
+  @IsEnum(BookingStatus)
+  status?: BookingStatus;
+
+  @ApiPropertyOptional({ description: 'Assign driver immediately (optional)', example: '507f1f77bcf86cd799439011' })
+  @IsOptional()
+  @IsMongoId()
+  assignedDriverId?: string;
+
+  @ApiPropertyOptional({ description: 'User ID if booking for existing user', example: '507f1f77bcf86cd799439011' })
+  @IsOptional()
+  @IsMongoId()
+  userId?: string;
+
+  @ApiPropertyOptional({ description: 'Mark payment as confirmed (for cash/manual payments)', default: false })
+  @IsOptional()
+  @IsBoolean()
+  paymentConfirmed?: boolean;
+
+  @ApiPropertyOptional({ description: 'Payment method for manual bookings', example: 'cash' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ description: 'Admin notes for this booking' })
+  @IsOptional()
+  @IsString()
+  adminNotes?: string;
+}
 
 // ============ Query DTOs ============
 
