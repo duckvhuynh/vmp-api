@@ -91,7 +91,7 @@ export class FiservService {
       transactionOrigin: 'ECOM',
       transactionType: FiservTransactionType.SALE,
       transactionAmount: {
-        total: String(dto.total), // Fiserv expects string
+        total: Number(dto.total), // Fiserv expects number
         currency: dto.currency || 'MUR',
       },
       checkoutSettings: {
