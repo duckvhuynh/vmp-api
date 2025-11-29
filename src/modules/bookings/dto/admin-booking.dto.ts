@@ -80,6 +80,16 @@ export class AdminCreateBookingDto {
   @IsDateString()
   pickupAt!: string;
 
+  @ApiPropertyOptional({ description: 'Flight number (for airport pickups)', example: 'MK123' })
+  @IsOptional()
+  @IsString()
+  flightNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Flight date (ISO string)', example: '2025-12-01' })
+  @IsOptional()
+  @IsString()
+  flightDate?: string;
+
   @ApiProperty({ description: 'Number of passengers', example: 2, minimum: 1 })
   @Type(() => Number)
   @IsNumber()
@@ -471,6 +481,12 @@ export class BookingListItemDto {
   @ApiProperty({ example: '2025-10-29T10:00:00.000Z' })
   pickupAt!: Date;
 
+  @ApiPropertyOptional({ example: 'MK123', description: 'Flight number' })
+  flightNumber?: string;
+
+  @ApiPropertyOptional({ example: '2025-10-29', description: 'Flight date' })
+  flightDate?: string;
+
   @ApiProperty({ example: 'ECONOMY' })
   vehicleClass!: string;
 
@@ -524,6 +540,12 @@ export class BookingDetailResponseDto extends BookingListItemDto {
     },
   })
   destination!: PlaceResponseDto;
+
+  @ApiPropertyOptional({ example: 'MK123', description: 'Flight number' })
+  flightNumber?: string;
+
+  @ApiPropertyOptional({ example: '2025-10-29', description: 'Flight date' })
+  flightDate?: string;
 
   @ApiProperty({ example: 2 })
   passengers!: number;

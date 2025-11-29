@@ -110,6 +110,12 @@ export class SimpleBooking {
   @Prop({ type: Date, required: true })
   pickupAt!: Date;
 
+  @Prop({ type: String })
+  flightNumber?: string;
+
+  @Prop({ type: String })
+  flightDate?: string;
+
   @Prop({ type: Date })
   actualPickupAt?: Date;
 
