@@ -44,5 +44,15 @@ export default () => {
       secretKey: process.env.MINIO_SECRET_KEY || '',
       bucket: process.env.MINIO_BUCKET || 'vmp',
     },
+    // Fiserv payment gateway configuration
+    fiserv: {
+      baseUrl: process.env.FISERV_BASE_URL || 'https://api.checkout-lane.com/v1',
+      storeId: process.env.FISERV_STORE_ID || '',
+      apiKey: process.env.FISERV_API_KEY || '',
+      secretKey: process.env.FISERV_SECRET_KEY || '',
+      webhookUrl: process.env.FISERV_WEBHOOK_URL || '',
+      defaultSuccessUrl: process.env.FISERV_SUCCESS_URL || 'https://visitmauritiusparadise.com/booking/success',
+      defaultFailureUrl: process.env.FISERV_FAILURE_URL || 'https://visitmauritiusparadise.com/booking/failed',
+    },
   };
 };

@@ -30,4 +30,12 @@ export const validationSchema = Joi.object({
   MINIO_ACCESS_KEY: Joi.string().allow(''),
   MINIO_SECRET_KEY: Joi.string().allow(''),
   MINIO_BUCKET: Joi.string().default('vmp'),
+  // Fiserv payment gateway configuration (optional)
+  FISERV_BASE_URL: Joi.string().uri().allow(''),
+  FISERV_STORE_ID: Joi.string().allow(''),
+  FISERV_API_KEY: Joi.string().allow(''),
+  FISERV_SECRET_KEY: Joi.string().allow(''),
+  FISERV_WEBHOOK_URL: Joi.string().uri().allow(''),
+  FISERV_SUCCESS_URL: Joi.string().uri().allow(''),
+  FISERV_FAILURE_URL: Joi.string().uri().allow(''),
 }).or('MONGODB_URI', 'MONGO_URI').or('REDIS_URL', 'REDIS_HOST');
