@@ -111,11 +111,14 @@ export class FiservService {
     };
 
     this.logger.log(`Creating Fiserv checkout for booking ${booking.bookingId}`);
+    this.logger.debug(`Fiserv base URL: ${this.config.baseUrl}`);
+    this.logger.debug(`Fiserv payload: ${JSON.stringify(payload)}`);
 
     try {
-      const response = await this.client.post('/checkouts', payload, {
-        headers: this.generateRequestHeaders(payload),
-      });
+      const headers = this.generateRequestHeaders(payload);
+      this.logger.debug(`Fiserv headers: ${JSON.stringify(headers)}`);
+
+      const response = await this.client.post('/checkouts', payload, { headers });
 
       const checkout = response.data.checkout || response.data;
 
@@ -143,9 +146,19 @@ export class FiservService {
         createdAt: new Date().toISOString(),
       };
     } catch (error: any) {
-      this.logger.error(`Failed to create checkout: ${error.message}`, error.response?.data);
+      // Log detailed error from Fiserv
+      this.logger.error(`Failed to create checkout: ${error.message}`);
+      this.logger.error(`Fiserv error response: ${JSON.stringify(error.response?.data)}`);
+      this.logger.error(`Fiserv error status: ${error.response?.status}`);
+      
+      // Extract meaningful error message
+      const fiservError = error.response?.data?.error?.message 
+        || error.response?.data?.message 
+        || error.response?.data?.errors?.[0]?.message
+        || error.message;
+      
       throw new InternalServerErrorException(
-        `Failed to create payment checkout: ${error.response?.data?.message || error.message}`
+        `Failed to create payment checkout: ${fiservError}`
       );
     }
   }

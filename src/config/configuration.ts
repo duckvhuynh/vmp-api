@@ -45,8 +45,12 @@ export default () => {
       bucket: process.env.MINIO_BUCKET || 'vmp',
     },
     // Fiserv payment gateway configuration
+    // Docs: https://docs.fiserv.dev/public/reference/postcheckouts
     fiserv: {
-      baseUrl: process.env.FISERV_BASE_URL || 'https://api.checkout-lane.com/v1',
+      // Default to sandbox for testing, use FISERV_BASE_URL for production
+      // Sandbox: https://prod.emea.api.fiservapps.com/sandbox/exp/v1
+      // Production: https://prod.emea.api.fiservapps.com/exp/v1
+      baseUrl: process.env.FISERV_BASE_URL || 'https://prod.emea.api.fiservapps.com/sandbox/exp/v1',
       storeId: process.env.FISERV_STORE_ID || '',
       apiKey: process.env.FISERV_API_KEY || '',
       secretKey: process.env.FISERV_SECRET_KEY || '',
