@@ -315,25 +315,33 @@ export class FiservService {
   }
 
   /**
-   * Generate request headers including MAC signature
+   * Generate request headers including HMAC authentication
+   * Reference: https://docs.fiserv.dev/public/docs/generate-an-authentication-header
    */
   private generateRequestHeaders(payload: any): Record<string, string> {
     const timestamp = Date.now().toString();
-    const nonce = crypto.randomBytes(16).toString('hex');
-
-    // Generate message signature (MAC) if required by Fiserv
-    // This depends on Fiserv's specific requirements
-    const messageToSign = `${timestamp}${nonce}${JSON.stringify(payload)}`;
+    
+    // Client-Request-Id must be UUID v4 format (128-bit)
+    const clientRequestId = crypto.randomUUID();
+    
+    // Stringify payload for signature
+    const rawPayload = JSON.stringify(payload);
+    
+    // Generate HMAC signature
+    // Format: Api-Key + Client-Request-Id + Timestamp + Payload
+    const messageToSign = this.config.apiKey + clientRequestId + timestamp + rawPayload;
     const signature = crypto
       .createHmac('sha256', this.config.secretKey)
       .update(messageToSign)
       .digest('base64');
 
     return {
+      'Content-Type': 'application/json',
       'Api-Key': this.config.apiKey,
-      'Client-Request-Id': nonce,
+      'Client-Request-Id': clientRequestId,
       'Timestamp': timestamp,
-      'Message-Signature': signature,
+      'Authorization': signature,
+      'Auth-Token-Type': 'HMAC',
     };
   }
 
