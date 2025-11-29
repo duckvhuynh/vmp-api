@@ -57,11 +57,11 @@ export class BookingsService {
     const uniqueId = randomUUID().substring(0, 6).toUpperCase();
     const bookingId = `BK-${dateStr}-${uniqueId}`;
 
-    // 6. Create booking
+    // 6. Create booking (userId is omitted for guest bookings)
     const booking = new this.bookingModel({
       bookingId,
       status: BookingStatus.PENDING_PAYMENT,
-      userId: null, // Guest booking - will be linked if user logs in
+      // userId is not set for guest bookings - can be linked later if user logs in
       
       // Passenger info
       passengerFirstName: dto.passenger.firstName,

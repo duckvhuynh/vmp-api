@@ -953,7 +953,7 @@ export class AdminBookingsService {
       _id: booking._id.toString(),
       bookingId: booking.bookingId,
       status: booking.status,
-      userId: booking.userId.toString(),
+      userId: booking.userId?.toString() || null,  // null for guest bookings
       passengerName: `${booking.passengerFirstName} ${booking.passengerLastName}`,
       passengerFirstName: booking.passengerFirstName,
       passengerLastName: booking.passengerLastName,

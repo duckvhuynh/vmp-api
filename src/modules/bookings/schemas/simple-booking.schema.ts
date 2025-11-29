@@ -45,8 +45,8 @@ export class SimpleBooking {
   @Prop({ type: String, enum: Object.values(BookingStatus), default: BookingStatus.PENDING_PAYMENT })
   status!: BookingStatus;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  userId?: Types.ObjectId;  // Optional for guest bookings
 
   @Prop({ type: String, required: true })
   passengerFirstName!: string;

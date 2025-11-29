@@ -670,8 +670,8 @@ export class BookingListItemDto {
 }
 
 export class BookingDetailResponseDto extends BookingListItemDto {
-  @ApiProperty({ example: '507f1f77bcf86cd799439011' })
-  userId!: string;
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'User ID (null for guest bookings)' })
+  userId?: string | null;
 
   @ApiProperty({ example: 'John' })
   passengerFirstName!: string;
