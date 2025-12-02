@@ -4,6 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export type BasePriceDocument = BasePrice & Document;
 
+// Keep VehicleClass enum for backward compatibility
 export enum VehicleClass {
   ECONOMY = 'economy',
   COMFORT = 'comfort',
@@ -12,18 +13,12 @@ export enum VehicleClass {
   LUXURY = 'luxury'
 }
 
-@Schema({ timestamps: true })
-export class BasePrice {
-  @ApiProperty({ description: 'Unique identifier' })
-  _id!: Types.ObjectId;
-
-  @ApiProperty({ description: 'Reference to price region' })
-  @Prop({ type: Types.ObjectId, ref: 'PriceRegion', required: true })
-  regionId!: Types.ObjectId;
-
-  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class' })
-  @Prop({ type: String, enum: VehicleClass, required: true })
-  vehicleClass!: VehicleClass;
+// Embedded schema for individual vehicle pricing
+@Schema({ _id: false })
+export class VehiclePricing {
+  @ApiProperty({ description: 'Vehicle ID from vehicles collection' })
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  vehicleId!: Types.ObjectId;
 
   @ApiProperty({ description: 'Base fare amount', example: 25.00 })
   @Prop({ type: Number, required: true, min: 0 })
@@ -40,10 +35,48 @@ export class BasePrice {
   @ApiProperty({ description: 'Minimum fare amount', example: 15.00 })
   @Prop({ type: Number, required: true, min: 0 })
   minimumFare!: number;
+}
 
-  @ApiProperty({ description: 'Currency code', example: 'AED' })
+export const VehiclePricingSchema = SchemaFactory.createForClass(VehiclePricing);
+
+@Schema({ timestamps: true })
+export class BasePrice {
+  @ApiProperty({ description: 'Unique identifier' })
+  _id!: Types.ObjectId;
+
+  @ApiProperty({ description: 'Reference to price region' })
+  @Prop({ type: Types.ObjectId, ref: 'PriceRegion', required: true })
+  regionId!: Types.ObjectId;
+
+  @ApiProperty({ description: 'Currency code', example: 'MUR' })
   @Prop({ type: String, required: true, uppercase: true, length: 3 })
   currency!: string;
+
+  @ApiProperty({ description: 'Vehicle pricing configurations', type: [VehiclePricing] })
+  @Prop({ type: [VehiclePricingSchema], required: true, default: [] })
+  vehiclePrices!: VehiclePricing[];
+
+  // Legacy field - kept for backward compatibility, will be deprecated
+  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: String, enum: VehicleClass, required: false })
+  vehicleClass?: VehicleClass;
+
+  // Legacy fields - kept for backward compatibility
+  @ApiProperty({ description: 'Base fare amount (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: Number, min: 0 })
+  baseFare?: number;
+
+  @ApiProperty({ description: 'Price per kilometer (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: Number, min: 0 })
+  pricePerKm?: number;
+
+  @ApiProperty({ description: 'Price per minute (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: Number, min: 0 })
+  pricePerMinute?: number;
+
+  @ApiProperty({ description: 'Minimum fare amount (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: Number, min: 0 })
+  minimumFare?: number;
 
   @ApiProperty({ description: 'Whether this base price is active', default: true })
   @Prop({ type: Boolean, default: true })
@@ -66,6 +99,8 @@ export class BasePrice {
 
 export const BasePriceSchema = SchemaFactory.createForClass(BasePrice);
 
-// Create compound index for efficient queries
-BasePriceSchema.index({ regionId: 1, vehicleClass: 1 });
+// Create indexes for efficient queries
 BasePriceSchema.index({ regionId: 1, isActive: 1 });
+BasePriceSchema.index({ regionId: 1, 'vehiclePrices.vehicleId': 1 });
+// Legacy index
+BasePriceSchema.index({ regionId: 1, vehicleClass: 1 });

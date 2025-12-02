@@ -6,6 +6,7 @@ import { PriceRegion, PriceRegionSchema } from './schemas/price-region.schema';
 import { BasePrice, BasePriceSchema } from './schemas/base-price.schema';
 import { Surcharge, SurchargeSchema } from './schemas/surcharge.schema';
 import { FixedPrice, FixedPriceSchema } from './schemas/fixed-price.schema';
+import { Vehicle, VehicleSchema } from '../vehicles/schemas/vehicle.schema';
 
 // Services
 import { PriceRegionService } from './services/price-region.service';
@@ -27,6 +28,7 @@ import { FixedPriceController } from './controllers/fixed-price.controller';
       { name: BasePrice.name, schema: BasePriceSchema },
       { name: Surcharge.name, schema: SurchargeSchema },
       { name: FixedPrice.name, schema: FixedPriceSchema },
+      { name: Vehicle.name, schema: VehicleSchema },
     ]),
   ],
   controllers: [

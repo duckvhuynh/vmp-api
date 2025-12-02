@@ -1,17 +1,15 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsBoolean, IsEnum, IsNumber, Min, IsDateString, IsMongoId } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsOptional, IsBoolean, IsEnum, IsNumber, Min, IsDateString, IsMongoId, IsArray, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { VehicleClass } from '../schemas/base-price.schema';
 
-export class CreateBasePriceDto {
-  @ApiProperty({ description: 'Price region ID' })
+// ============ Vehicle Pricing DTOs ============
+
+export class VehiclePricingDto {
+  @ApiProperty({ description: 'Vehicle ID from vehicles collection' })
   @IsNotEmpty()
   @IsMongoId()
-  regionId!: string;
-
-  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class' })
-  @IsEnum(VehicleClass)
-  vehicleClass!: VehicleClass;
+  vehicleId!: string;
 
   @ApiProperty({ description: 'Base fare amount', example: 25.00 })
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -36,41 +34,66 @@ export class CreateBasePriceDto {
   @Min(0)
   @Transform(({ value }) => parseFloat(value))
   minimumFare!: number;
+}
 
-  @ApiProperty({ description: 'Currency code', example: 'AED' })
+// ============ Create DTOs ============
+
+export class CreateBasePriceDto {
+  @ApiProperty({ description: 'Price region ID' })
+  @IsNotEmpty()
+  @IsMongoId()
+  regionId!: string;
+
+  @ApiProperty({ description: 'Currency code', example: 'MUR' })
   @IsNotEmpty()
   @IsString()
   @Transform(({ value }) => value?.toUpperCase())
   currency!: string;
 
-  @ApiProperty({ description: 'Whether this base price is active', default: true, required: false })
+  @ApiProperty({ 
+    description: 'Vehicle pricing configurations - array of vehicles with their prices',
+    type: [VehiclePricingDto]
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VehiclePricingDto)
+  vehiclePrices!: VehiclePricingDto[];
+
+  @ApiPropertyOptional({ description: 'Whether this base price is active', default: true })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true' || value === true)
   isActive?: boolean;
 
-  @ApiProperty({ description: 'Valid from date', required: false })
+  @ApiPropertyOptional({ description: 'Valid from date' })
   @IsOptional()
   @IsDateString()
   validFrom?: string;
 
-  @ApiProperty({ description: 'Valid until date', required: false })
+  @ApiPropertyOptional({ description: 'Valid until date' })
   @IsOptional()
   @IsDateString()
   validUntil?: string;
 }
 
 export class UpdateBasePriceDto extends PartialType(CreateBasePriceDto) {
-  @ApiProperty({ description: 'Price region ID', required: false })
+  @ApiPropertyOptional({ description: 'Price region ID' })
   @IsOptional()
   @IsMongoId()
   regionId?: string;
 
-  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class', required: false })
+  @ApiPropertyOptional({ 
+    description: 'Vehicle pricing configurations',
+    type: [VehiclePricingDto]
+  })
   @IsOptional()
-  @IsEnum(VehicleClass)
-  vehicleClass?: VehicleClass;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VehiclePricingDto)
+  vehiclePrices?: VehiclePricingDto[];
 }
+
+// ============ Response DTOs ============
 
 export class RegionInfoDto {
   @ApiProperty({ description: 'Region ID' })
@@ -83,18 +106,32 @@ export class RegionInfoDto {
   tags!: string[];
 }
 
-export class BasePriceResponseDto {
-  @ApiProperty({ description: 'Base price ID' })
+export class VehicleInfoDto {
+  @ApiProperty({ description: 'Vehicle ID' })
   _id!: string;
 
-  @ApiProperty({ description: 'Price region ID' })
-  regionId!: string;
+  @ApiProperty({ description: 'Vehicle name' })
+  name!: string;
 
-  @ApiProperty({ description: 'Region details', type: RegionInfoDto, required: false })
-  region?: RegionInfoDto;
+  @ApiProperty({ description: 'Vehicle category' })
+  category!: string;
 
-  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class' })
-  vehicleClass!: VehicleClass;
+  @ApiPropertyOptional({ description: 'Vehicle image' })
+  image?: string;
+
+  @ApiProperty({ description: 'Max passengers' })
+  maxPassengers!: number;
+
+  @ApiProperty({ description: 'Max luggage' })
+  maxLuggage!: number;
+}
+
+export class VehiclePricingResponseDto {
+  @ApiProperty({ description: 'Vehicle ID' })
+  vehicleId!: string;
+
+  @ApiPropertyOptional({ description: 'Vehicle details', type: VehicleInfoDto })
+  vehicle?: VehicleInfoDto;
 
   @ApiProperty({ description: 'Base fare amount' })
   baseFare!: number;
@@ -107,17 +144,31 @@ export class BasePriceResponseDto {
 
   @ApiProperty({ description: 'Minimum fare amount' })
   minimumFare!: number;
+}
+
+export class BasePriceResponseDto {
+  @ApiProperty({ description: 'Base price ID' })
+  _id!: string;
+
+  @ApiProperty({ description: 'Price region ID' })
+  regionId!: string;
+
+  @ApiPropertyOptional({ description: 'Region details', type: RegionInfoDto })
+  region?: RegionInfoDto;
 
   @ApiProperty({ description: 'Currency code' })
   currency!: string;
 
+  @ApiProperty({ description: 'Vehicle pricing configurations', type: [VehiclePricingResponseDto] })
+  vehiclePrices!: VehiclePricingResponseDto[];
+
   @ApiProperty({ description: 'Whether this base price is active' })
   isActive!: boolean;
 
-  @ApiProperty({ description: 'Valid from date' })
+  @ApiPropertyOptional({ description: 'Valid from date' })
   validFrom?: Date;
 
-  @ApiProperty({ description: 'Valid until date' })
+  @ApiPropertyOptional({ description: 'Valid until date' })
   validUntil?: Date;
 
   @ApiProperty({ description: 'Creation timestamp' })
@@ -125,6 +176,22 @@ export class BasePriceResponseDto {
 
   @ApiProperty({ description: 'Last update timestamp' })
   updatedAt!: Date;
+
+  // Legacy fields for backward compatibility
+  @ApiPropertyOptional({ enum: VehicleClass, description: 'Vehicle class (deprecated)' })
+  vehicleClass?: VehicleClass;
+
+  @ApiPropertyOptional({ description: 'Base fare (deprecated - use vehiclePrices)' })
+  baseFare?: number;
+
+  @ApiPropertyOptional({ description: 'Price per km (deprecated - use vehiclePrices)' })
+  pricePerKm?: number;
+
+  @ApiPropertyOptional({ description: 'Price per minute (deprecated - use vehiclePrices)' })
+  pricePerMinute?: number;
+
+  @ApiPropertyOptional({ description: 'Minimum fare (deprecated - use vehiclePrices)' })
+  minimumFare?: number;
 }
 
 export class BasePriceListResponseDto {

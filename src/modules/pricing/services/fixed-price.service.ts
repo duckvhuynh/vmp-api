@@ -1,9 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { FixedPrice, FixedPriceDocument } from '../schemas/fixed-price.schema';
 import { PriceRegion, PriceRegionDocument } from '../schemas/price-region.schema';
-import { CreateFixedPriceDto, UpdateFixedPriceDto, FixedPriceResponseDto, FixedPriceListResponseDto } from '../dto/fixed-price.dto';
+import { Vehicle, VehicleDocument } from '../../vehicles/schemas/vehicle.schema';
+import { 
+  CreateFixedPriceDto, 
+  UpdateFixedPriceDto, 
+  FixedPriceResponseDto, 
+  FixedPriceListResponseDto,
+  VehicleFixedPricingResponseDto,
+} from '../dto/fixed-price.dto';
+import { RegionInfoDto, VehicleInfoDto } from '../dto/base-price.dto';
 import { FixedPriceQueryDto } from '../dto/common.dto';
 
 @Injectable()
@@ -11,6 +19,7 @@ export class FixedPriceService {
   constructor(
     @InjectModel(FixedPrice.name) private fixedPriceModel: Model<FixedPriceDocument>,
     @InjectModel(PriceRegion.name) private priceRegionModel: Model<PriceRegionDocument>,
+    @InjectModel(Vehicle.name) private vehicleModel: Model<VehicleDocument>,
   ) {}
 
   async create(createFixedPriceDto: CreateFixedPriceDto): Promise<FixedPriceResponseDto> {
@@ -26,25 +35,52 @@ export class FixedPriceService {
       throw new BadRequestException(`Destination region with ID ${createFixedPriceDto.destinationRegionId} not found`);
     }
 
-    // Check for duplicate route + vehicle class combination
+    // Verify all vehicles exist
+    if (createFixedPriceDto.vehiclePrices && createFixedPriceDto.vehiclePrices.length > 0) {
+      const vehicleIds = createFixedPriceDto.vehiclePrices.map(vp => vp.vehicleId);
+      const vehicles = await this.vehicleModel.find({ _id: { $in: vehicleIds } }).exec();
+      
+      if (vehicles.length !== vehicleIds.length) {
+        const foundIds = vehicles.map(v => (v._id as Types.ObjectId).toString());
+        const missingIds = vehicleIds.filter(id => !foundIds.includes(id));
+        throw new BadRequestException(`Vehicles not found: ${missingIds.join(', ')}`);
+      }
+    }
+
+    // Check for existing fixed price for this route
     const existing = await this.fixedPriceModel
       .findOne({
         originRegionId: createFixedPriceDto.originRegionId,
         destinationRegionId: createFixedPriceDto.destinationRegionId,
-        vehicleClass: createFixedPriceDto.vehicleClass,
         isActive: true,
       })
       .exec();
 
     if (existing) {
       throw new BadRequestException(
-        `Active fixed price already exists for route ${createFixedPriceDto.originRegionId} → ${createFixedPriceDto.destinationRegionId} with vehicle class ${createFixedPriceDto.vehicleClass}`
+        `Active fixed price already exists for route ${createFixedPriceDto.originRegionId} → ${createFixedPriceDto.destinationRegionId}. Use update to modify vehicle prices.`
       );
     }
 
-    const createdFixedPrice = new this.fixedPriceModel(createFixedPriceDto);
+    const createdFixedPrice = new this.fixedPriceModel({
+      ...createFixedPriceDto,
+      vehiclePrices: createFixedPriceDto.vehiclePrices.map(vp => ({
+        ...vp,
+        vehicleId: new Types.ObjectId(vp.vehicleId),
+      })),
+    });
+    
     const savedFixedPrice = await createdFixedPrice.save();
-    return this.toResponseDto(savedFixedPrice);
+    
+    // Populate and return
+    const populated = await this.fixedPriceModel
+      .findById(savedFixedPrice._id)
+      .populate('originRegionId', 'name tags')
+      .populate('destinationRegionId', 'name tags')
+      .populate('vehiclePrices.vehicleId', 'name category image capacity')
+      .exec();
+    
+    return this.toResponseDto(populated!);
   }
 
   async findAll(query: FixedPriceQueryDto): Promise<FixedPriceListResponseDto> {
@@ -73,6 +109,7 @@ export class FixedPriceService {
       filter.destinationRegionId = destinationRegionId;
     }
 
+    // Legacy support
     if (vehicleClass) {
       filter.vehicleClass = vehicleClass;
     }
@@ -90,6 +127,7 @@ export class FixedPriceService {
         .find(filter)
         .populate('originRegionId', 'name tags')
         .populate('destinationRegionId', 'name tags')
+        .populate('vehiclePrices.vehicleId', 'name category image capacity')
         .skip(skip)
         .limit(limit)
         .sort({ priority: -1, createdAt: -1 })
@@ -110,6 +148,7 @@ export class FixedPriceService {
       .findById(id)
       .populate('originRegionId', 'name tags')
       .populate('destinationRegionId', 'name tags')
+      .populate('vehiclePrices.vehicleId', 'name category image capacity')
       .exec();
       
     if (!fixedPrice) {
@@ -135,38 +174,32 @@ export class FixedPriceService {
       }
     }
 
-    // If route or vehicle class is being updated, check for duplicates
-    if (updateFixedPriceDto.originRegionId || updateFixedPriceDto.destinationRegionId || updateFixedPriceDto.vehicleClass) {
-      const currentFixedPrice = await this.fixedPriceModel.findById(id).exec();
-      if (!currentFixedPrice) {
-        throw new NotFoundException(`Fixed price with ID ${id} not found`);
-      }
-
-      const newOriginRegionId = updateFixedPriceDto.originRegionId || currentFixedPrice.originRegionId;
-      const newDestinationRegionId = updateFixedPriceDto.destinationRegionId || currentFixedPrice.destinationRegionId;
-      const newVehicleClass = updateFixedPriceDto.vehicleClass || currentFixedPrice.vehicleClass;
-
-      const existing = await this.fixedPriceModel
-        .findOne({
-          _id: { $ne: id },
-          originRegionId: newOriginRegionId,
-          destinationRegionId: newDestinationRegionId,
-          vehicleClass: newVehicleClass,
-          isActive: true,
-        })
-        .exec();
-
-      if (existing) {
-        throw new BadRequestException(
-          `Active fixed price already exists for route ${newOriginRegionId} → ${newDestinationRegionId} with vehicle class ${newVehicleClass}`
-        );
+    // Verify all vehicles exist if updating vehiclePrices
+    if (updateFixedPriceDto.vehiclePrices && updateFixedPriceDto.vehiclePrices.length > 0) {
+      const vehicleIds = updateFixedPriceDto.vehiclePrices.map(vp => vp.vehicleId);
+      const vehicles = await this.vehicleModel.find({ _id: { $in: vehicleIds } }).exec();
+      
+      if (vehicles.length !== vehicleIds.length) {
+        const foundIds = vehicles.map(v => (v._id as Types.ObjectId).toString());
+        const missingIds = vehicleIds.filter(id => !foundIds.includes(id));
+        throw new BadRequestException(`Vehicles not found: ${missingIds.join(', ')}`);
       }
     }
 
+    // Prepare update data
+    const updateData: any = { ...updateFixedPriceDto };
+    if (updateFixedPriceDto.vehiclePrices) {
+      updateData.vehiclePrices = updateFixedPriceDto.vehiclePrices.map(vp => ({
+        ...vp,
+        vehicleId: new Types.ObjectId(vp.vehicleId),
+      }));
+    }
+
     const updatedFixedPrice = await this.fixedPriceModel
-      .findByIdAndUpdate(id, updateFixedPriceDto, { new: true })
+      .findByIdAndUpdate(id, updateData, { new: true })
       .populate('originRegionId', 'name tags')
       .populate('destinationRegionId', 'name tags')
+      .populate('vehiclePrices.vehicleId', 'name category image capacity')
       .exec();
 
     if (!updatedFixedPrice) {
@@ -183,6 +216,47 @@ export class FixedPriceService {
     }
   }
 
+  /**
+   * Find fixed price by route and vehicle ID
+   */
+  async findByRouteAndVehicleId(
+    originRegionId: string,
+    destinationRegionId: string,
+    vehicleId: string
+  ): Promise<FixedPriceResponseDto | null> {
+    const fixedPrice = await this.fixedPriceModel
+      .findOne({
+        originRegionId,
+        destinationRegionId,
+        'vehiclePrices.vehicleId': vehicleId,
+        isActive: true,
+        $and: [
+          {
+            $or: [
+              { validFrom: { $exists: false } },
+              { validFrom: { $lte: new Date() } }
+            ]
+          },
+          {
+            $or: [
+              { validUntil: { $exists: false } },
+              { validUntil: { $gte: new Date() } }
+            ]
+          }
+        ]
+      })
+      .populate('originRegionId', 'name tags')
+      .populate('destinationRegionId', 'name tags')
+      .populate('vehiclePrices.vehicleId', 'name category image capacity')
+      .sort({ priority: -1 })
+      .exec();
+
+    return fixedPrice ? this.toResponseDto(fixedPrice) : null;
+  }
+
+  /**
+   * Legacy method - find by route and vehicle class
+   */
   async findByRoute(
     originRegionId: string,
     destinationRegionId: string,
@@ -211,12 +285,16 @@ export class FixedPriceService {
       })
       .populate('originRegionId', 'name tags')
       .populate('destinationRegionId', 'name tags')
+      .populate('vehiclePrices.vehicleId', 'name category image capacity')
       .sort({ priority: -1 })
       .exec();
 
     return fixedPrice ? this.toResponseDto(fixedPrice) : null;
   }
 
+  /**
+   * Find all fixed prices for a route (with all vehicles)
+   */
   async findByRegions(
     originRegionId: string,
     destinationRegionId: string
@@ -243,7 +321,8 @@ export class FixedPriceService {
       })
       .populate('originRegionId', 'name tags')
       .populate('destinationRegionId', 'name tags')
-      .sort({ priority: -1, vehicleClass: 1 })
+      .populate('vehiclePrices.vehicleId', 'name category image capacity')
+      .sort({ priority: -1 })
       .exec();
 
     return fixedPrices.map(fixedPrice => this.toResponseDto(fixedPrice));
@@ -253,7 +332,7 @@ export class FixedPriceService {
     // Handle populated originRegionId
     const originRegionId = fixedPrice.originRegionId as any;
     let originRegionIdString: string;
-    let originRegion: { _id: string; name: string; tags: string[] } | undefined;
+    let originRegion: RegionInfoDto | undefined;
 
     if (originRegionId && typeof originRegionId === 'object' && originRegionId._id) {
       originRegionIdString = originRegionId._id.toString();
@@ -269,7 +348,7 @@ export class FixedPriceService {
     // Handle populated destinationRegionId
     const destinationRegionId = fixedPrice.destinationRegionId as any;
     let destinationRegionIdString: string;
-    let destinationRegion: { _id: string; name: string; tags: string[] } | undefined;
+    let destinationRegion: RegionInfoDto | undefined;
 
     if (destinationRegionId && typeof destinationRegionId === 'object' && destinationRegionId._id) {
       destinationRegionIdString = destinationRegionId._id.toString();
@@ -282,6 +361,35 @@ export class FixedPriceService {
       destinationRegionIdString = destinationRegionId ? String(destinationRegionId) : '';
     }
 
+    // Map vehicle prices
+    const vehiclePrices: VehicleFixedPricingResponseDto[] = (fixedPrice.vehiclePrices || []).map(vp => {
+      const vehicleData = vp.vehicleId as any;
+      let vehicleIdString: string;
+      let vehicle: VehicleInfoDto | undefined;
+
+      if (vehicleData && typeof vehicleData === 'object' && vehicleData._id) {
+        vehicleIdString = vehicleData._id.toString();
+        vehicle = {
+          _id: vehicleData._id.toString(),
+          name: vehicleData.name?.value || vehicleData.name?.translations?.en || '',
+          category: vehicleData.category || '',
+          image: vehicleData.image,
+          maxPassengers: vehicleData.capacity?.maxPassengers || 0,
+          maxLuggage: vehicleData.capacity?.maxLuggage || 0,
+        };
+      } else {
+        vehicleIdString = vehicleData ? String(vehicleData) : '';
+      }
+
+      return {
+        vehicleId: vehicleIdString,
+        vehicle,
+        fixedPrice: vp.fixedPrice,
+        includedWaitingTime: vp.includedWaitingTime || 15,
+        additionalWaitingPrice: vp.additionalWaitingPrice,
+      };
+    });
+
     return {
       _id: fixedPrice._id.toString(),
       originRegionId: originRegionIdString,
@@ -289,13 +397,10 @@ export class FixedPriceService {
       destinationRegionId: destinationRegionIdString,
       destinationRegion,
       name: fixedPrice.name,
-      vehicleClass: fixedPrice.vehicleClass,
-      fixedPrice: fixedPrice.fixedPrice,
       currency: fixedPrice.currency,
+      vehiclePrices,
       estimatedDistance: fixedPrice.estimatedDistance,
       estimatedDuration: fixedPrice.estimatedDuration,
-      includedWaitingTime: fixedPrice.includedWaitingTime,
-      additionalWaitingPrice: fixedPrice.additionalWaitingPrice,
       isActive: fixedPrice.isActive,
       priority: fixedPrice.priority,
       validFrom: fixedPrice.validFrom,
@@ -304,6 +409,11 @@ export class FixedPriceService {
       tags: fixedPrice.tags,
       createdAt: fixedPrice.createdAt,
       updatedAt: fixedPrice.updatedAt,
+      // Legacy fields
+      vehicleClass: fixedPrice.vehicleClass,
+      fixedPrice: fixedPrice.fixedPrice,
+      includedWaitingTime: fixedPrice.includedWaitingTime,
+      additionalWaitingPrice: fixedPrice.additionalWaitingPrice,
     };
   }
 }

@@ -5,6 +5,28 @@ import { VehicleClass } from './base-price.schema';
 
 export type FixedPriceDocument = FixedPrice & Document;
 
+// Embedded schema for individual vehicle fixed pricing
+@Schema({ _id: false })
+export class VehicleFixedPricing {
+  @ApiProperty({ description: 'Vehicle ID from vehicles collection' })
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  vehicleId!: Types.ObjectId;
+
+  @ApiProperty({ description: 'Fixed price amount', example: 85.00 })
+  @Prop({ type: Number, required: true, min: 0 })
+  fixedPrice!: number;
+
+  @ApiProperty({ description: 'Included waiting time in minutes', example: 15, default: 15 })
+  @Prop({ type: Number, min: 0, default: 15 })
+  includedWaitingTime!: number;
+
+  @ApiProperty({ description: 'Price per additional minute of waiting', example: 1.50 })
+  @Prop({ type: Number, min: 0 })
+  additionalWaitingPrice?: number;
+}
+
+export const VehicleFixedPricingSchema = SchemaFactory.createForClass(VehicleFixedPricing);
+
 @Schema({ timestamps: true })
 export class FixedPrice {
   @ApiProperty({ description: 'Unique identifier' })
@@ -18,21 +40,27 @@ export class FixedPrice {
   @Prop({ type: Types.ObjectId, ref: 'PriceRegion', required: true })
   destinationRegionId!: Types.ObjectId;
 
-  @ApiProperty({ description: 'Route name', example: 'Dubai Airport to Downtown' })
+  @ApiProperty({ description: 'Route name', example: 'Airport to Downtown' })
   @Prop({ required: true, trim: true })
   name!: string;
 
-  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class' })
-  @Prop({ type: String, enum: VehicleClass, required: true })
-  vehicleClass!: VehicleClass;
-
-  @ApiProperty({ description: 'Fixed price amount', example: 85.00 })
-  @Prop({ type: Number, required: true, min: 0 })
-  fixedPrice!: number;
-
-  @ApiProperty({ description: 'Currency code', example: 'AED' })
+  @ApiProperty({ description: 'Currency code', example: 'MUR' })
   @Prop({ type: String, required: true, uppercase: true, length: 3 })
   currency!: string;
+
+  @ApiProperty({ description: 'Vehicle pricing configurations', type: [VehicleFixedPricing] })
+  @Prop({ type: [VehicleFixedPricingSchema], required: true, default: [] })
+  vehiclePrices!: VehicleFixedPricing[];
+
+  // Legacy field - kept for backward compatibility
+  @ApiProperty({ enum: VehicleClass, description: 'Vehicle class (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: String, enum: VehicleClass, required: false })
+  vehicleClass?: VehicleClass;
+
+  // Legacy field
+  @ApiProperty({ description: 'Fixed price amount (deprecated - use vehiclePrices instead)' })
+  @Prop({ type: Number, min: 0 })
+  fixedPrice?: number;
 
   @ApiProperty({ description: 'Estimated distance in kilometers', example: 25.5 })
   @Prop({ type: Number, min: 0 })
@@ -42,11 +70,13 @@ export class FixedPrice {
   @Prop({ type: Number, min: 0 })
   estimatedDuration?: number;
 
-  @ApiProperty({ description: 'Included waiting time in minutes', example: 15, default: 15 })
+  // Legacy field
+  @ApiProperty({ description: 'Included waiting time in minutes (deprecated)', example: 15, default: 15 })
   @Prop({ type: Number, min: 0, default: 15 })
-  includedWaitingTime!: number;
+  includedWaitingTime?: number;
 
-  @ApiProperty({ description: 'Price per additional minute of waiting', example: 1.50 })
+  // Legacy field
+  @ApiProperty({ description: 'Price per additional minute (deprecated)', example: 1.50 })
   @Prop({ type: Number, min: 0 })
   additionalWaitingPrice?: number;
 
@@ -83,7 +113,9 @@ export class FixedPrice {
 
 export const FixedPriceSchema = SchemaFactory.createForClass(FixedPrice);
 
-// Create compound indexes for efficient queries
-FixedPriceSchema.index({ originRegionId: 1, destinationRegionId: 1, vehicleClass: 1 });
+// Create indexes for efficient queries
 FixedPriceSchema.index({ originRegionId: 1, destinationRegionId: 1, isActive: 1 });
+FixedPriceSchema.index({ originRegionId: 1, destinationRegionId: 1, 'vehiclePrices.vehicleId': 1 });
 FixedPriceSchema.index({ priority: -1 });
+// Legacy index
+FixedPriceSchema.index({ originRegionId: 1, destinationRegionId: 1, vehicleClass: 1 });
