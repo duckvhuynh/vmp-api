@@ -25,24 +25,26 @@ export class TranslationDto {
   en!: string;
 
   @ApiProperty({ 
-    description: 'Chinese translation of the vehicle name or equivalent',
+    description: 'Chinese translation of the vehicle name or equivalent (optional)',
     example: '标准轿车',
     minLength: 1,
-    maxLength: 100
+    maxLength: 100,
+    required: false
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  cn!: string;
+  cn?: string;
 
   @ApiProperty({ 
-    description: 'Vietnamese translation of the vehicle name or equivalent',
+    description: 'Vietnamese translation of the vehicle name or equivalent (optional)',
     example: 'Xe sedan tiêu chuẩn',
     minLength: 1,
-    maxLength: 100
+    maxLength: 100,
+    required: false
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  vi!: string;
+  vi?: string;
 }
 
 export class TranslationFieldDto {
@@ -137,6 +139,7 @@ export class CreateVehicleDto {
   @ApiProperty({ 
     description: 'Alternative or equivalent name for the vehicle with multi-language support. Used for marketing or regional variations.',
     type: TranslationFieldDto,
+    required: false,
     example: {
       translations: {
         en: 'City Car',
@@ -147,9 +150,10 @@ export class CreateVehicleDto {
       defaultLanguage: 'en'
     }
   })
+  @IsOptional()
   @ValidateNested()
   @Type(() => TranslationFieldDto)
-  equivalent!: TranslationFieldDto;
+  equivalent?: TranslationFieldDto;
 
   @ApiProperty({ 
     description: 'Classification of vehicle by physical type and design',
