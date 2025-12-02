@@ -24,6 +24,8 @@ export class PriceRegionService {
       if (!createPriceRegionDto.shape.geometry) {
         throw new BadRequestException('Polygon shape requires geometry data');
       }
+      // Ensure polygon is closed (first and last coordinates must be identical)
+      this.ensurePolygonClosed(createPriceRegionDto.shape.geometry);
     }
 
     const createdRegion = new this.priceRegionModel(createPriceRegionDto);
@@ -85,6 +87,8 @@ export class PriceRegionService {
         if (!updatePriceRegionDto.shape.geometry) {
           throw new BadRequestException('Polygon shape requires geometry data');
         }
+        // Ensure polygon is closed (first and last coordinates must be identical)
+        this.ensurePolygonClosed(updatePriceRegionDto.shape.geometry);
       }
     }
 
@@ -142,6 +146,39 @@ export class PriceRegionService {
     }
 
     return matchingRegions.map(region => this.toResponseDto(region));
+  }
+
+  /**
+   * Ensure GeoJSON polygon is closed (first and last coordinates must be identical)
+   * MongoDB requires this for geo queries
+   */
+  private ensurePolygonClosed(geometry: any): void {
+    if (!geometry || !geometry.coordinates) return;
+
+    // Handle both Polygon and MultiPolygon
+    const polygons = geometry.type === 'MultiPolygon'
+      ? geometry.coordinates
+      : [geometry.coordinates];
+
+    for (const polygon of polygons) {
+      for (const ring of polygon) {
+        if (ring.length > 0) {
+          const first = ring[0];
+          const last = ring[ring.length - 1];
+
+          // Check if first and last coordinates are different
+          if (first[0] !== last[0] || first[1] !== last[1]) {
+            // Close the ring by adding the first coordinate at the end
+            ring.push([...first]);
+          }
+        }
+      }
+    }
+
+    // Update coordinates back for Polygon type
+    if (geometry.type === 'Polygon') {
+      geometry.coordinates = polygons[0];
+    }
   }
 
   /**
