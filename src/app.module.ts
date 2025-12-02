@@ -19,6 +19,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { SeedModule } from './modules/seed/seed.module';
 import { MinioModule } from './modules/minio/minio.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { UploadModule } from './modules/upload/upload.module';
     SeedModule,
     MinioModule,
     UploadModule,
+    ReportsModule,
   ],
   providers: [
     {

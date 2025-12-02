@@ -42,9 +42,6 @@ export class QuotesService {
       // Resolve regions for origin and destination
       const { originRegion, destinationRegion } = await this.resolveRegions(dto);
 
-      // Get vehicle classes to quote
-      const vehicleClasses = await this.getVehicleClassesToQuote(dto, originRegion);
-
       // Calculate distance if not provided (simple approximation)
       let distanceKm = dto.distanceKm;
       let durationMinutes = dto.durationMinutes;
@@ -60,45 +57,84 @@ export class QuotesService {
         this.logger.log(`Estimated distance: ${distanceKm.toFixed(2)} km, duration: ${durationMinutes} min`);
       }
 
-      // Calculate pricing for each vehicle class
+      // Calculate pricing for each vehicle
       const vehicleOptions: QuoteVehicleClassDto[] = [];
 
-      for (const vehicleClass of vehicleClasses) {
+      // NEW: Try to get vehicle prices from configured pricing (with images)
+      if (originRegion) {
         try {
-          // Try to get pricing from the pricing service
-          if (originRegion) {
-            const priceBreakdown = await this.priceCalculationService.calculatePrice({
-              originLatitude: dto.origin.latitude,
-              originLongitude: dto.origin.longitude,
-              destinationLatitude: dto.destination.latitude,
-              destinationLongitude: dto.destination.longitude,
-              originRegionId: originRegion?._id?.toString(),
-              destinationRegionId: destinationRegion?._id?.toString(),
-              vehicleClass: vehicleClass,
-              distanceKm: distanceKm || 0,
-              durationMinutes: durationMinutes || 0,
-              bookingDateTime: pickupTime,
-              minutesUntilPickup,
-              extras: dto.extras || [],
-            });
+          const availablePrices = await this.priceCalculationService.getAvailableVehiclePrices(
+            originRegion._id?.toString(),
+            destinationRegion?._id?.toString(),
+            distanceKm || 0,
+            durationMinutes || 0,
+            pickupTime,
+            minutesUntilPickup,
+            dto.extras || []
+          );
 
-            const vehicleOption = this.mapToVehicleClassDto(vehicleClass, priceBreakdown);
-            vehicleOptions.push(vehicleOption);
-          } else {
-            // Fallback to default pricing when no region is configured
-            const vehicleOption = this.calculateDefaultPrice(vehicleClass, distanceKm || 0, durationMinutes || 0, dto.extras || []);
-            vehicleOptions.push(vehicleOption);
+          // Filter by passenger and luggage capacity
+          for (const priceBreakdown of availablePrices) {
+            if (priceBreakdown.vehicleInfo) {
+              const { vehicleInfo } = priceBreakdown;
+              
+              // Check capacity
+              if (vehicleInfo.maxPassengers >= dto.pax && vehicleInfo.maxLuggage >= dto.bags) {
+                const vehicleOption = this.mapPriceBreakdownToDto(priceBreakdown);
+                vehicleOptions.push(vehicleOption);
+              }
+            }
+          }
+
+          if (vehicleOptions.length > 0) {
+            this.logger.log(`Found ${vehicleOptions.length} configured vehicle prices`);
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          this.logger.warn(`Failed to calculate price for vehicle class ${vehicleClass}: ${errorMessage}`);
-          
-          // Use fallback default pricing
+          this.logger.warn(`Failed to get configured vehicle prices: ${errorMessage}`);
+        }
+      }
+
+      // FALLBACK: If no configured prices found, use legacy vehicle class approach
+      if (vehicleOptions.length === 0) {
+        this.logger.log('No configured vehicle prices, falling back to legacy approach');
+        
+        const vehicleClasses = await this.getVehicleClassesToQuote(dto, originRegion);
+
+        for (const vehicleClass of vehicleClasses) {
           try {
-            const vehicleOption = this.calculateDefaultPrice(vehicleClass, distanceKm || 0, durationMinutes || 0, dto.extras || []);
-            vehicleOptions.push(vehicleOption);
-          } catch (fallbackError) {
-            this.logger.warn(`Fallback pricing also failed for ${vehicleClass}`);
+            if (originRegion) {
+              const priceBreakdown = await this.priceCalculationService.calculatePrice({
+                originLatitude: dto.origin.latitude,
+                originLongitude: dto.origin.longitude,
+                destinationLatitude: dto.destination.latitude,
+                destinationLongitude: dto.destination.longitude,
+                originRegionId: originRegion?._id?.toString(),
+                destinationRegionId: destinationRegion?._id?.toString(),
+                vehicleClass: vehicleClass,
+                distanceKm: distanceKm || 0,
+                durationMinutes: durationMinutes || 0,
+                bookingDateTime: pickupTime,
+                minutesUntilPickup,
+                extras: dto.extras || [],
+              });
+
+              const vehicleOption = this.mapToVehicleClassDto(vehicleClass, priceBreakdown);
+              vehicleOptions.push(vehicleOption);
+            } else {
+              const vehicleOption = this.calculateDefaultPrice(vehicleClass, distanceKm || 0, durationMinutes || 0, dto.extras || []);
+              vehicleOptions.push(vehicleOption);
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.warn(`Failed to calculate price for vehicle class ${vehicleClass}: ${errorMessage}`);
+            
+            try {
+              const vehicleOption = this.calculateDefaultPrice(vehicleClass, distanceKm || 0, durationMinutes || 0, dto.extras || []);
+              vehicleOptions.push(vehicleOption);
+            } catch (fallbackError) {
+              this.logger.warn(`Fallback pricing also failed for ${vehicleClass}`);
+            }
           }
         }
       }
@@ -348,6 +384,52 @@ export class QuotesService {
   // Cached vehicles from database for current quote request
   private cachedVehicles: any[] = [];
 
+  /**
+   * Map new price breakdown (with vehicleInfo including image) to QuoteVehicleClassDto
+   */
+  private mapPriceBreakdownToDto(priceBreakdown: any): QuoteVehicleClassDto {
+    const vehicleInfo = priceBreakdown.vehicleInfo;
+    
+    // Map category to VehicleClass for backward compatibility
+    const vehicleClass = this.mapCategoryToVehicleClass(vehicleInfo?.category || 'economy') || VehicleClass.ECONOMY;
+
+    const pricing: PriceBreakdownDto = {
+      baseFare: priceBreakdown.baseFare || priceBreakdown.fixedFare || 0,
+      distanceCharge: priceBreakdown.distanceCharge,
+      timeCharge: priceBreakdown.timeCharge,
+      airportFees: priceBreakdown.airportFees,
+      surcharges: priceBreakdown.totalSurcharges,
+      extras: priceBreakdown.extrasTotal,
+      total: priceBreakdown.total,
+      currency: priceBreakdown.currency,
+    };
+
+    const appliedSurcharges: SurchargeDetailDto[] = (priceBreakdown.appliedSurcharges || []).map((surcharge: any) => ({
+      name: surcharge.name,
+      application: surcharge.application,
+      value: surcharge.value,
+      amount: surcharge.amount,
+      reason: surcharge.reason,
+    }));
+
+    return {
+      vehicleId: priceBreakdown.vehicleId,
+      id: vehicleClass,
+      name: vehicleInfo?.name || 'Vehicle',
+      paxCapacity: vehicleInfo?.maxPassengers || 4,
+      bagCapacity: vehicleInfo?.maxLuggage || 2,
+      image: vehicleInfo?.image, // IMAGE IS INCLUDED HERE
+      pricing,
+      appliedSurcharges,
+      includedWaitingTime: priceBreakdown.includedWaitingTime,
+      additionalWaitingPrice: priceBreakdown.additionalWaitingPrice,
+      isFixedPrice: priceBreakdown.isFixedPrice,
+    };
+  }
+
+  /**
+   * Legacy: Map vehicle class to DTO (used when no configured pricing exists)
+   */
   private mapToVehicleClassDto(vehicleClass: VehicleClass, priceBreakdown: any): QuoteVehicleClassDto {
     const classInfo = this.getVehicleClassInfo(vehicleClass);
 
