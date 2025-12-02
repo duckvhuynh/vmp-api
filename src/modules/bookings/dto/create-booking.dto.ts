@@ -52,13 +52,21 @@ export class CreateBookingDto {
   @IsNotEmpty()
   quoteId!: string;
 
-  @ApiProperty({ 
-    example: 'economy',
-    description: 'Selected vehicle class from the quote options (e.g., economy, comfort, premium, van, luxury)'
+  @ApiPropertyOptional({ 
+    example: '507f1f77bcf86cd799439011',
+    description: 'Selected vehicle ID from the quote vehicle options (preferred over selectedVehicleClass)'
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  selectedVehicleClass!: string;
+  selectedVehicleId?: string;
+
+  @ApiPropertyOptional({ 
+    example: 'economy',
+    description: 'Selected vehicle class from the quote options (deprecated - use selectedVehicleId instead)'
+  })
+  @IsOptional()
+  @IsString()
+  selectedVehicleClass?: string;
 
   @ApiProperty({ type: PassengerDto, description: 'Passenger details' })
   @ValidateNested()
@@ -123,6 +131,9 @@ export class BookingSummaryDto {
 
   @ApiProperty({ example: '2025-12-01T10:00:00.000Z' })
   pickupAt!: string;
+
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'Vehicle ID' })
+  vehicleId?: string;
 
   @ApiProperty({ example: 'Economy' })
   vehicleClass!: string;

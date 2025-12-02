@@ -108,12 +108,17 @@ export class AdminCreateBookingDto {
   @IsString({ each: true })
   extras?: string[];
 
-  @ApiProperty({ description: 'Vehicle class', example: 'economy' })
-  @IsString()
-  @IsNotEmpty()
-  vehicleClass!: string;
+  @ApiPropertyOptional({ description: 'Vehicle ID from vehicles collection (preferred)', example: '507f1f77bcf86cd799439011' })
+  @IsOptional()
+  @IsMongoId()
+  vehicleId?: string;
 
-  @ApiPropertyOptional({ description: 'Vehicle display name', example: 'Economy Sedan' })
+  @ApiPropertyOptional({ description: 'Vehicle class (use vehicleId instead for consistency)', example: 'economy' })
+  @IsOptional()
+  @IsString()
+  vehicleClass?: string;
+
+  @ApiPropertyOptional({ description: 'Vehicle display name (auto-populated from vehicleId if provided)', example: 'Economy Sedan' })
   @IsOptional()
   @IsString()
   vehicleName?: string;
@@ -652,6 +657,9 @@ export class BookingListItemDto {
 
   @ApiPropertyOptional({ example: '2025-10-29', description: 'Flight date' })
   flightDate?: string;
+
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'Vehicle ID' })
+  vehicleId?: string;
 
   @ApiProperty({ example: 'ECONOMY' })
   vehicleClass!: string;

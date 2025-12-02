@@ -7,6 +7,7 @@ import { AdminBookingsService } from './services/admin-bookings.service';
 import { SimpleBooking, SimpleBookingSchema } from './schemas/simple-booking.schema';
 import { SimpleDriver, SimpleDriverSchema } from '../drivers/schemas/simple-driver.schema';
 import { Quote, QuoteSchema } from '../quotes/schemas/simple-quote.schema';
+import { VehiclesModule } from '../vehicles/vehicles.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { Quote, QuoteSchema } from '../quotes/schemas/simple-quote.schema';
       { name: SimpleDriver.name, schema: SimpleDriverSchema },
       { name: Quote.name, schema: QuoteSchema },
     ]),
+    VehiclesModule,
   ],
   controllers: [BookingsController, AdminBookingsController],
   providers: [BookingsService, AdminBookingsService],

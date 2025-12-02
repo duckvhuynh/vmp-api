@@ -20,6 +20,7 @@ import {
 } from '../dto/admin-booking.dto';
 import { SimpleDriver, SimpleDriverDocument } from '../../drivers/schemas/simple-driver.schema';
 import { PlaceDto, PlaceResponseDto, PlaceType, getPlaceDisplayName } from '../../../common/dto/place.dto';
+import { VehiclesService } from '../../vehicles/services/vehicles.service';
 
 @Injectable()
 export class AdminBookingsService {
@@ -28,6 +29,7 @@ export class AdminBookingsService {
   constructor(
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
     @InjectModel(SimpleDriver.name) private driverModel: Model<SimpleDriverDocument>,
+    private readonly vehiclesService: VehiclesService,
   ) {}
 
   /**
@@ -36,6 +38,11 @@ export class AdminBookingsService {
    */
   async create(dto: AdminCreateBookingDto, adminUserId: string): Promise<BookingDetailResponseDto> {
     this.logger.log(`Admin ${adminUserId} creating booking for ${dto.passengerFirstName} ${dto.passengerLastName}`);
+
+    // Validate - either vehicleId or vehicleClass must be provided
+    if (!dto.vehicleId && !dto.vehicleClass) {
+      throw new BadRequestException('Either vehicleId or vehicleClass must be provided');
+    }
 
     // Generate unique booking ID
     const timestamp = new Date();
@@ -47,6 +54,27 @@ export class AdminBookingsService {
     let status = dto.status || BookingStatus.CONFIRMED;
     if (dto.assignedDriverId) {
       status = BookingStatus.DRIVER_ASSIGNED;
+    }
+
+    // Resolve vehicle info from vehicleId if provided
+    let vehicleId: Types.ObjectId | undefined;
+    let vehicleClass = dto.vehicleClass || '';
+    let vehicleName = dto.vehicleName || dto.vehicleClass || '';
+    let vehicleCapacity = dto.vehicleCapacity || 4;
+    let vehicleBagCapacity = dto.vehicleBagCapacity || 2;
+
+    if (dto.vehicleId) {
+      try {
+        const vehicle = await this.vehiclesService.findOne(dto.vehicleId);
+        vehicleId = new Types.ObjectId(dto.vehicleId);
+        vehicleClass = vehicle.category;
+        vehicleName = vehicle.name.value || vehicle.name.translations?.en || vehicle.category;
+        vehicleCapacity = vehicle.capacity.maxPassengers;
+        vehicleBagCapacity = vehicle.capacity.maxLuggage;
+        this.logger.log(`Resolved vehicle info from ID ${dto.vehicleId}: ${vehicleName} (${vehicleClass})`);
+      } catch (error) {
+        throw new BadRequestException(`Vehicle with ID ${dto.vehicleId} not found`);
+      }
     }
 
     // Create booking with consistent PlaceDto structure
@@ -82,10 +110,12 @@ export class AdminBookingsService {
       passengers: dto.passengers,
       luggage: dto.luggage,
       extras: dto.extras || [],
-      vehicleClass: dto.vehicleClass,
-      vehicleName: dto.vehicleName || dto.vehicleClass,
-      vehicleCapacity: dto.vehicleCapacity || 4,
-      vehicleBagCapacity: dto.vehicleBagCapacity || 2,
+      // Vehicle info (resolved from vehicleId if provided)
+      vehicleId,
+      vehicleClass,
+      vehicleName,
+      vehicleCapacity,
+      vehicleBagCapacity,
       baseFare: dto.baseFare,
       distanceCharge: dto.distanceCharge,
       timeCharge: dto.timeCharge,
@@ -916,6 +946,7 @@ export class AdminBookingsService {
       pickupAt: booking.pickupAt,
       flightNumber: booking.flightNumber,
       flightDate: booking.flightDate,
+      vehicleId: booking.vehicleId?.toString(),
       vehicleClass: booking.vehicleClass,
       total: booking.total,
       currency: booking.currency,
@@ -970,6 +1001,7 @@ export class AdminBookingsService {
       passengers: booking.passengers,
       luggage: booking.luggage,
       extras: booking.extras,
+      vehicleId: booking.vehicleId?.toString(),
       vehicleClass: booking.vehicleClass,
       vehicleName: booking.vehicleName,
       vehicleCapacity: booking.vehicleCapacity,

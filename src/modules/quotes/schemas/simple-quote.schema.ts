@@ -6,6 +6,9 @@ export type QuoteDocument = Quote & Document;
 // Embedded schema for vehicle option
 @Schema({ _id: false })
 export class QuoteVehicleOption {
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle' })
+  vehicleId?: Types.ObjectId;
+
   @Prop({ required: true })
   vehicleClass!: string;
 

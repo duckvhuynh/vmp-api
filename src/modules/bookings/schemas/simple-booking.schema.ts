@@ -142,6 +142,9 @@ export class SimpleBooking {
   notes?: string;
 
   // Vehicle details
+  @Prop({ type: Types.ObjectId, ref: 'Vehicle' })
+  vehicleId?: Types.ObjectId;
+
   @Prop({ type: String })
   vehicleClass!: string;
 

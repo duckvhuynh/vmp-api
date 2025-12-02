@@ -21,34 +21,58 @@ export class BookingsService {
    * Customer flow: Quote -> Select Vehicle -> Create Booking -> Payment
    */
   async create(dto: CreateBookingDto): Promise<BookingResponseDto> {
-    this.logger.log(`Creating booking from quote ${dto.quoteId} with vehicle class ${dto.selectedVehicleClass}`);
+    this.logger.log(`Creating booking from quote ${dto.quoteId} with vehicleId ${dto.selectedVehicleId} or class ${dto.selectedVehicleClass}`);
 
-    // 1. Validate and fetch quote
+    // 1. Validate - either selectedVehicleId or selectedVehicleClass must be provided
+    if (!dto.selectedVehicleId && !dto.selectedVehicleClass) {
+      throw new BadRequestException('Either selectedVehicleId or selectedVehicleClass must be provided');
+    }
+
+    // 2. Validate and fetch quote
     const quote = await this.quoteModel.findOne({ quoteId: dto.quoteId }).exec();
     if (!quote) {
       throw new NotFoundException(`Quote ${dto.quoteId} not found`);
     }
 
-    // 2. Check if quote is still valid
+    // 3. Check if quote is still valid
     if (quote.expiresAt < new Date()) {
       throw new BadRequestException(`Quote ${dto.quoteId} has expired. Please get a new quote.`);
     }
 
-    // 3. Check if quote is already used
+    // 4. Check if quote is already used
     if (quote.isUsed) {
       throw new BadRequestException(`Quote ${dto.quoteId} has already been used for another booking`);
     }
 
-    // 4. Find selected vehicle option
-    const selectedVehicle = quote.vehicleOptions.find(
-      v => v.vehicleClass.toLowerCase() === dto.selectedVehicleClass.toLowerCase()
-    );
+    // 5. Find selected vehicle option - prefer vehicleId, fallback to vehicleClass
+    let selectedVehicle;
+    if (dto.selectedVehicleId) {
+      selectedVehicle = quote.vehicleOptions.find(
+        v => v.vehicleId?.toString() === dto.selectedVehicleId
+      );
+      if (!selectedVehicle) {
+        const availableIds = quote.vehicleOptions
+          .filter(v => v.vehicleId)
+          .map(v => v.vehicleId?.toString())
+          .join(', ');
+        throw new BadRequestException(
+          `Vehicle ID '${dto.selectedVehicleId}' not available in this quote. Available IDs: ${availableIds || 'none (use vehicleClass instead)'}`
+        );
+      }
+    } else if (dto.selectedVehicleClass) {
+      selectedVehicle = quote.vehicleOptions.find(
+        v => v.vehicleClass.toLowerCase() === dto.selectedVehicleClass!.toLowerCase()
+      );
+      if (!selectedVehicle) {
+        const availableClasses = quote.vehicleOptions.map(v => v.vehicleClass).join(', ');
+        throw new BadRequestException(
+          `Vehicle class '${dto.selectedVehicleClass}' not available in this quote. Available: ${availableClasses}`
+        );
+      }
+    }
 
     if (!selectedVehicle) {
-      const availableClasses = quote.vehicleOptions.map(v => v.vehicleClass).join(', ');
-      throw new BadRequestException(
-        `Vehicle class '${dto.selectedVehicleClass}' not available in this quote. Available: ${availableClasses}`
-      );
+      throw new BadRequestException('Could not find matching vehicle in quote');
     }
 
     // 5. Generate unique booking ID
@@ -96,6 +120,7 @@ export class BookingsService {
       extras: [...(quote.extras || []), ...(dto.extras || [])].filter((v, i, a) => a.indexOf(v) === i), // Merge and dedupe
 
       // Vehicle from selected option
+      vehicleId: selectedVehicle.vehicleId,
       vehicleClass: selectedVehicle.vehicleClass,
       vehicleName: selectedVehicle.name,
       vehicleCapacity: selectedVehicle.paxCapacity,
@@ -146,6 +171,7 @@ export class BookingsService {
         origin: quote.originName || this.getLocationDisplay(quote.origin),
         destination: quote.destinationName || this.getLocationDisplay(quote.destination),
         pickupAt: quote.pickupAt.toISOString(),
+        vehicleId: selectedVehicle.vehicleId?.toString(),
         vehicleClass: selectedVehicle.vehicleClass,
         vehicleName: selectedVehicle.name,
         passengers: quote.passengers,
@@ -217,6 +243,7 @@ export class BookingsService {
       luggage: booking.luggage,
       extras: booking.extras,
       vehicle: {
+        id: booking.vehicleId?.toString(),
         class: booking.vehicleClass,
         name: booking.vehicleName,
         capacity: booking.vehicleCapacity,

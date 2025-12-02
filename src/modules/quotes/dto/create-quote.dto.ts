@@ -109,6 +109,9 @@ export class SurchargeDetailDto {
 }
 
 export class QuoteVehicleClassDto {
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'Vehicle ID from vehicles collection' })
+  vehicleId?: string;
+
   @ApiProperty({ enum: VehicleClass, example: VehicleClass.ECONOMY })
   id!: VehicleClass;
 

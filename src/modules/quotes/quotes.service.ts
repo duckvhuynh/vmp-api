@@ -142,6 +142,7 @@ export class QuotesService {
         luggage: dto.bags,
         extras: dto.extras || [],
         vehicleOptions: vehicleOptions.map(v => ({
+          vehicleId: v.vehicleId,
           vehicleClass: v.id,
           name: v.name,
           paxCapacity: v.paxCapacity,
@@ -314,7 +315,7 @@ export class QuotesService {
   /**
    * Get vehicle info - first tries from cached database vehicles, then falls back to defaults
    */
-  private getVehicleClassInfo(vehicleClass: VehicleClass): { name: string; paxCapacity: number; bagCapacity: number; image?: string } {
+  private getVehicleClassInfo(vehicleClass: VehicleClass): { vehicleId?: string; name: string; paxCapacity: number; bagCapacity: number; image?: string } {
     // Try to get from cached vehicles first
     if (this.cachedVehicles && this.cachedVehicles.length > 0) {
       const matchingVehicle = this.cachedVehicles.find(v => {
@@ -324,6 +325,7 @@ export class QuotesService {
 
       if (matchingVehicle) {
         return {
+          vehicleId: matchingVehicle._id?.toString(),
           name: matchingVehicle.name.value || matchingVehicle.name.translations?.en || vehicleClass,
           paxCapacity: matchingVehicle.capacity.maxPassengers,
           bagCapacity: matchingVehicle.capacity.maxLuggage,
@@ -332,7 +334,7 @@ export class QuotesService {
       }
     }
 
-    // Fallback to default values
+    // Fallback to default values (no vehicleId)
     const defaultClassInfo = {
       [VehicleClass.ECONOMY]: { name: 'Economy', paxCapacity: 3, bagCapacity: 2 },
       [VehicleClass.COMFORT]: { name: 'Comfort', paxCapacity: 4, bagCapacity: 3 },
@@ -369,6 +371,7 @@ export class QuotesService {
     }));
 
     return {
+      vehicleId: classInfo.vehicleId,
       id: vehicleClass,
       name: classInfo.name,
       paxCapacity: classInfo.paxCapacity,
@@ -505,6 +508,7 @@ export class QuotesService {
     };
 
     return {
+      vehicleId: classInfo.vehicleId,
       id: vehicleClass,
       name: classInfo.name,
       paxCapacity: classInfo.paxCapacity,
