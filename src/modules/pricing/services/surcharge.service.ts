@@ -241,9 +241,26 @@ export class SurchargeService {
   }
 
   private toResponseDto(surcharge: SurchargeDocument): SurchargeResponseDto {
+    // Handle populated regionId
+    const regionId = surcharge.regionId as any;
+    let regionIdString: string;
+    let region: { _id: string; name: string; tags: string[] } | undefined;
+
+    if (regionId && typeof regionId === 'object' && regionId._id) {
+      regionIdString = regionId._id.toString();
+      region = {
+        _id: regionId._id.toString(),
+        name: regionId.name || '',
+        tags: regionId.tags || [],
+      };
+    } else {
+      regionIdString = regionId ? String(regionId) : '';
+    }
+
     return {
       _id: surcharge._id.toString(),
-      regionId: surcharge.regionId.toString(),
+      regionId: regionIdString,
+      region,
       name: surcharge.name,
       type: surcharge.type,
       application: surcharge.application,

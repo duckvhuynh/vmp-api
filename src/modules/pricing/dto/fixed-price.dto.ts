@@ -2,6 +2,7 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsOptional, IsBoolean, IsEnum, IsNumber, Min, IsDateString, IsMongoId, IsArray } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { VehicleClass } from '../schemas/base-price.schema';
+import { RegionInfoDto } from './base-price.dto';
 
 export class CreateFixedPriceDto {
   @ApiProperty({ description: 'Origin region ID' })
@@ -129,8 +130,14 @@ export class FixedPriceResponseDto {
   @ApiProperty({ description: 'Origin region ID' })
   originRegionId!: string;
 
+  @ApiProperty({ description: 'Origin region details', type: RegionInfoDto, required: false })
+  originRegion?: RegionInfoDto;
+
   @ApiProperty({ description: 'Destination region ID' })
   destinationRegionId!: string;
+
+  @ApiProperty({ description: 'Destination region details', type: RegionInfoDto, required: false })
+  destinationRegion?: RegionInfoDto;
 
   @ApiProperty({ description: 'Route name' })
   name!: string;

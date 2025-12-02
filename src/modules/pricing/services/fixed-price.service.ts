@@ -250,10 +250,44 @@ export class FixedPriceService {
   }
 
   private toResponseDto(fixedPrice: FixedPriceDocument): FixedPriceResponseDto {
+    // Handle populated originRegionId
+    const originRegionId = fixedPrice.originRegionId as any;
+    let originRegionIdString: string;
+    let originRegion: { _id: string; name: string; tags: string[] } | undefined;
+
+    if (originRegionId && typeof originRegionId === 'object' && originRegionId._id) {
+      originRegionIdString = originRegionId._id.toString();
+      originRegion = {
+        _id: originRegionId._id.toString(),
+        name: originRegionId.name || '',
+        tags: originRegionId.tags || [],
+      };
+    } else {
+      originRegionIdString = originRegionId ? String(originRegionId) : '';
+    }
+
+    // Handle populated destinationRegionId
+    const destinationRegionId = fixedPrice.destinationRegionId as any;
+    let destinationRegionIdString: string;
+    let destinationRegion: { _id: string; name: string; tags: string[] } | undefined;
+
+    if (destinationRegionId && typeof destinationRegionId === 'object' && destinationRegionId._id) {
+      destinationRegionIdString = destinationRegionId._id.toString();
+      destinationRegion = {
+        _id: destinationRegionId._id.toString(),
+        name: destinationRegionId.name || '',
+        tags: destinationRegionId.tags || [],
+      };
+    } else {
+      destinationRegionIdString = destinationRegionId ? String(destinationRegionId) : '';
+    }
+
     return {
       _id: fixedPrice._id.toString(),
-      originRegionId: fixedPrice.originRegionId.toString(),
-      destinationRegionId: fixedPrice.destinationRegionId.toString(),
+      originRegionId: originRegionIdString,
+      originRegion,
+      destinationRegionId: destinationRegionIdString,
+      destinationRegion,
       name: fixedPrice.name,
       vehicleClass: fixedPrice.vehicleClass,
       fixedPrice: fixedPrice.fixedPrice,

@@ -2,6 +2,7 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsOptional, IsBoolean, IsEnum, IsNumber, Min, Max, IsDateString, IsMongoId, IsArray, ValidateNested, Matches } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { SurchargeType, SurchargeApplication } from '../schemas/surcharge.schema';
+import { RegionInfoDto } from './base-price.dto';
 
 export class TimeRangeDto {
   @ApiProperty({ description: 'Start time in HH:mm format', example: '22:00' })
@@ -161,6 +162,9 @@ export class SurchargeResponseDto {
 
   @ApiProperty({ description: 'Price region ID' })
   regionId!: string;
+
+  @ApiProperty({ description: 'Region details', type: RegionInfoDto, required: false })
+  region?: RegionInfoDto;
 
   @ApiProperty({ description: 'Surcharge name' })
   name!: string;
