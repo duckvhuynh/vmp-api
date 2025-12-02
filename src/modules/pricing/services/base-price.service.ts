@@ -196,9 +196,28 @@ export class BasePriceService {
   }
 
   private toResponseDto(basePrice: BasePriceDocument): BasePriceResponseDto {
+    // Handle populated regionId - it could be an object or just an ObjectId
+    const regionId = basePrice.regionId as any;
+    let regionIdString: string;
+    let region: { _id: string; name: string; tags: string[] } | undefined;
+
+    if (regionId && typeof regionId === 'object' && regionId._id) {
+      // regionId is populated
+      regionIdString = regionId._id.toString();
+      region = {
+        _id: regionId._id.toString(),
+        name: regionId.name || '',
+        tags: regionId.tags || [],
+      };
+    } else {
+      // regionId is just an ObjectId
+      regionIdString = regionId ? String(regionId) : '';
+    }
+
     return {
       _id: basePrice._id.toString(),
-      regionId: basePrice.regionId.toString(),
+      regionId: regionIdString,
+      region,
       vehicleClass: basePrice.vehicleClass,
       baseFare: basePrice.baseFare,
       pricePerKm: basePrice.pricePerKm,

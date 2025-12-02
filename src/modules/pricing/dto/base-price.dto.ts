@@ -72,12 +72,26 @@ export class UpdateBasePriceDto extends PartialType(CreateBasePriceDto) {
   vehicleClass?: VehicleClass;
 }
 
+export class RegionInfoDto {
+  @ApiProperty({ description: 'Region ID' })
+  _id!: string;
+
+  @ApiProperty({ description: 'Region name' })
+  name!: string;
+
+  @ApiProperty({ description: 'Region tags', type: [String] })
+  tags!: string[];
+}
+
 export class BasePriceResponseDto {
   @ApiProperty({ description: 'Base price ID' })
   _id!: string;
 
   @ApiProperty({ description: 'Price region ID' })
   regionId!: string;
+
+  @ApiProperty({ description: 'Region details', type: RegionInfoDto, required: false })
+  region?: RegionInfoDto;
 
   @ApiProperty({ enum: VehicleClass, description: 'Vehicle class' })
   vehicleClass!: VehicleClass;
