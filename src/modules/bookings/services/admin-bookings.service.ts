@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
 import { Model, Types, FilterQuery } from 'mongoose';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import { SimpleBooking, SimpleBookingDocument, BookingStatus, BookingEventName } from '../schemas/simple-booking.schema';
 import {
   AdminCreateBookingDto,
@@ -26,6 +27,7 @@ import { DriverAccessService } from './driver-access.service';
 @Injectable()
 export class AdminBookingsService {
   private readonly logger = new Logger(AdminBookingsService.name);
+  private readonly frontendUrl: string;
 
   constructor(
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
@@ -33,7 +35,33 @@ export class AdminBookingsService {
     private readonly vehiclesService: VehiclesService,
     @Inject(forwardRef(() => DriverAccessService))
     private readonly driverAccessService: DriverAccessService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') 
+      || this.configService.get<string>('frontendUrl')
+      || 'https://visitmauritiusparadise.com';
+  }
+
+  /**
+   * Generate a short, unique access code (8 alphanumeric characters)
+   */
+  private async generateUniqueAccessCode(): Promise<string> {
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      const bytes = randomBytes(6);
+      const accessCode = bytes.toString('hex').substring(0, 8).toUpperCase();
+      
+      const existing = await this.bookingModel.findOne({ accessCode }).exec();
+      if (!existing) {
+        return accessCode;
+      }
+      attempts++;
+    }
+
+    throw new BadRequestException('Failed to generate unique access code');
+  }
 
   /**
    * Create a new booking (admin)
@@ -80,9 +108,13 @@ export class AdminBookingsService {
       }
     }
 
+    // Generate unique access code for customer booking page
+    const accessCode = await this.generateUniqueAccessCode();
+
     // Create booking with consistent PlaceDto structure
     const booking = new this.bookingModel({
       bookingId,
+      accessCode,
       status,
       userId: dto.userId ? new Types.ObjectId(dto.userId) : new Types.ObjectId(adminUserId),
       passengerFirstName: dto.passengerFirstName,
@@ -242,8 +274,21 @@ export class AdminBookingsService {
 
     const totalPages = Math.ceil(total / limit);
 
+    // Fetch driver names for bookings with assigned drivers
+    const driverIds = bookings
+      .filter(b => b.assignedDriver)
+      .map(b => b.assignedDriver!);
+    
+    const driverNameMap = new Map<string, string>();
+    if (driverIds.length > 0) {
+      const drivers = await this.driverModel.find({ _id: { $in: driverIds } }).select('firstName lastName').exec();
+      drivers.forEach(driver => {
+        driverNameMap.set(driver._id.toString(), `${driver.firstName} ${driver.lastName}`);
+      });
+    }
+
     return {
-      bookings: bookings.map(this.mapToListItem),
+      bookings: bookings.map(booking => this.mapToListItemWithDriver(booking, driverNameMap)),
       total,
       page,
       limit,
@@ -343,11 +388,10 @@ export class AdminBookingsService {
       }
     }
 
-    // Generate driver access link
+    // Generate driver access link (never expires)
     const driverLinkData = this.driverAccessService.generateDriverAccessLink(
       booking.bookingId,
       dto.driverId,
-      booking.pickupAt,
     );
 
     // Build event description
@@ -380,13 +424,12 @@ export class AdminBookingsService {
 
     await booking.save();
     
-    this.logger.log(`Driver ${dto.driverId} assigned to booking ${booking.bookingId}. Driver link generated.`);
+    this.logger.log(`Driver ${dto.driverId} assigned to booking ${booking.bookingId}. Driver link generated (never expires).`);
     
     // Return response with driver link
     const response = this.mapToDetail(booking);
     response.driverLink = driverLinkData.driverLink;
     response.driverAccessToken = driverLinkData.token;
-    response.driverTokenExpiresAt = driverLinkData.expiresAt;
     
     return response;
   }
@@ -504,14 +547,13 @@ export class AdminBookingsService {
 
     await booking.save();
 
-    // Generate driver access link
+    // Generate driver access link (never expires)
     const driverLinkData = this.driverAccessService.generateDriverAccessLink(
       booking.bookingId,
       selectedDriver.driver._id.toString(),
-      booking.pickupAt,
     );
 
-    this.logger.log(`Auto-assigned driver ${selectedDriver.driver._id} to booking ${booking.bookingId}. Driver link generated.`);
+    this.logger.log(`Auto-assigned driver ${selectedDriver.driver._id} to booking ${booking.bookingId}. Driver link generated (never expires).`);
 
     return {
       success: true,
@@ -523,7 +565,6 @@ export class AdminBookingsService {
       distanceKm,
       driverLink: driverLinkData.driverLink,
       driverAccessToken: driverLinkData.token,
-      tokenExpiresAt: driverLinkData.expiresAt,
     };
   }
 
@@ -832,7 +873,15 @@ export class AdminBookingsService {
     }
 
     const bookings = await this.bookingModel.find(filter).sort({ pickupAt: 1 }).exec();
-    return bookings.map(this.mapToListItem);
+    
+    // Get driver name
+    const driver = await this.driverModel.findById(driverId).select('firstName lastName').exec();
+    const driverNameMap = new Map<string, string>();
+    if (driver) {
+      driverNameMap.set(driverId, `${driver.firstName} ${driver.lastName}`);
+    }
+
+    return bookings.map(booking => this.mapToListItemWithDriver(booking, driverNameMap));
   }
 
   /**
@@ -847,7 +896,7 @@ export class AdminBookingsService {
       status: { $in: [BookingStatus.CONFIRMED, BookingStatus.DRIVER_ASSIGNED] },
     }).sort({ pickupAt: 1 }).limit(50).exec();
 
-    return bookings.map(this.mapToListItem);
+    return this.addDriverNamesToBookings(bookings);
   }
 
   /**
@@ -877,16 +926,34 @@ export class AdminBookingsService {
       ],
     }).sort({ pickupAt: 1 }).limit(50).exec();
 
-    return bookings.map(this.mapToListItem);
+    return this.addDriverNamesToBookings(bookings);
   }
 
   /**
-   * Get or regenerate driver access link for a booking
+   * Helper: Add driver names to a list of bookings
+   */
+  private async addDriverNamesToBookings(bookings: SimpleBookingDocument[]): Promise<BookingListItemDto[]> {
+    const driverIds = bookings
+      .filter(b => b.assignedDriver)
+      .map(b => b.assignedDriver!);
+
+    const driverNameMap = new Map<string, string>();
+    if (driverIds.length > 0) {
+      const drivers = await this.driverModel.find({ _id: { $in: driverIds } }).select('firstName lastName').exec();
+      drivers.forEach(driver => {
+        driverNameMap.set(driver._id.toString(), `${driver.firstName} ${driver.lastName}`);
+      });
+    }
+
+    return bookings.map(booking => this.mapToListItemWithDriver(booking, driverNameMap));
+  }
+
+  /**
+   * Get or regenerate driver access link for a booking (never expires)
    */
   async getDriverLink(id: string): Promise<{
     driverLink: string;
     token: string;
-    expiresAt: Date;
     bookingId: string;
     driverId: string;
   }> {
@@ -899,15 +966,37 @@ export class AdminBookingsService {
     const driverLinkData = this.driverAccessService.generateDriverAccessLink(
       booking.bookingId,
       booking.assignedDriver.toString(),
-      booking.pickupAt,
     );
 
     return {
       driverLink: driverLinkData.driverLink,
       token: driverLinkData.token,
-      expiresAt: driverLinkData.expiresAt,
       bookingId: booking.bookingId,
       driverId: booking.assignedDriver.toString(),
+    };
+  }
+
+  /**
+   * Get customer booking page link for a booking
+   */
+  async getCustomerLink(id: string): Promise<{
+    bookingId: string;
+    accessCode: string;
+    bookingUrl: string;
+  }> {
+    const booking = await this.findBookingById(id);
+    
+    // Generate access code if not already present
+    if (!booking.accessCode) {
+      booking.accessCode = await this.generateUniqueAccessCode();
+      booking.updatedAt = new Date();
+      await booking.save();
+    }
+
+    return {
+      bookingId: booking.bookingId,
+      accessCode: booking.accessCode,
+      bookingUrl: `${this.frontendUrl}/my-booking/${booking.accessCode}`,
     };
   }
 
@@ -998,6 +1087,7 @@ export class AdminBookingsService {
     return {
       _id: booking._id.toString(),
       bookingId: booking.bookingId,
+      accessCode: booking.accessCode,
       status: booking.status,
       passengerName: `${booking.passengerFirstName} ${booking.passengerLastName}`,
       passengerPhone: booking.passengerPhone,
@@ -1010,9 +1100,23 @@ export class AdminBookingsService {
       vehicleClass: booking.vehicleClass,
       total: booking.total,
       currency: booking.currency,
-      driverName: booking.assignedDriver ? 'Assigned' : undefined, // TODO: Populate driver name
+      driverName: undefined,
       createdAt: booking.createdAt,
     };
+  };
+
+  private mapToListItemWithDriver = (
+    booking: SimpleBookingDocument,
+    driverNameMap: Map<string, string>,
+  ): BookingListItemDto => {
+    const item = this.mapToListItem(booking);
+    
+    // Get actual driver name from map
+    if (booking.assignedDriver) {
+      item.driverName = driverNameMap.get(booking.assignedDriver.toString()) || 'Unknown Driver';
+    }
+    
+    return item;
   };
 
   private mapToDetail = (booking: SimpleBookingDocument, includeDriverLink: boolean = true): BookingDetailResponseDto => {
@@ -1040,30 +1144,33 @@ export class AdminBookingsService {
       regionId: booking.destinationRegionId?.toString(),
     };
 
-    // Generate driver link if driver is assigned and link is requested
+    // Generate driver link if driver is assigned and link is requested (never expires)
     let driverLink: string | undefined;
     let driverAccessToken: string | undefined;
-    let driverTokenExpiresAt: Date | undefined;
     
     if (includeDriverLink && booking.assignedDriver) {
       try {
         const driverLinkData = this.driverAccessService.generateDriverAccessLink(
           booking.bookingId,
           booking.assignedDriver.toString(),
-          booking.pickupAt,
         );
         driverLink = driverLinkData.driverLink;
         driverAccessToken = driverLinkData.token;
-        driverTokenExpiresAt = driverLinkData.expiresAt;
       } catch (error) {
         // Log but don't fail if driver link generation fails
         this.logger.warn(`Failed to generate driver link for booking ${booking.bookingId}: ${error}`);
       }
     }
 
+    // Generate customer booking URL
+    const bookingUrl = booking.accessCode 
+      ? `${this.frontendUrl}/my-booking/${booking.accessCode}`
+      : undefined;
+
     return {
       _id: booking._id.toString(),
       bookingId: booking.bookingId,
+      accessCode: booking.accessCode,
       status: booking.status,
       userId: booking.userId?.toString() || null,  // null for guest bookings
       passengerName: `${booking.passengerFirstName} ${booking.passengerLastName}`,
@@ -1098,7 +1205,7 @@ export class AdminBookingsService {
       assignedDriver: booking.assignedDriver?.toString(),
       driverLink,
       driverAccessToken,
-      driverTokenExpiresAt,
+      bookingUrl,
       events: booking.events || [],
       paymentConfirmedAt: booking.paymentConfirmedAt,
       paymentIntentId: booking.paymentIntentId,

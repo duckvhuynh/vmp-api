@@ -42,6 +42,14 @@ export class SimpleBooking {
   @Prop({ type: String, required: true, unique: true })
   bookingId!: string;
 
+  /**
+   * Short access code for customer booking page (8 alphanumeric characters)
+   * Used for friendly URLs like /my-booking/{accessCode}
+   * Generated automatically when booking is created
+   */
+  @Prop({ type: String, unique: true, sparse: true })
+  accessCode?: string;
+
   @Prop({ type: String, enum: Object.values(BookingStatus), default: BookingStatus.PENDING_PAYMENT })
   status!: BookingStatus;
 
@@ -207,6 +215,7 @@ export const SimpleBookingSchema = SchemaFactory.createForClass(SimpleBooking);
 
 // Create indexes for efficient queries
 SimpleBookingSchema.index({ bookingId: 1 }, { unique: true });
+SimpleBookingSchema.index({ accessCode: 1 }, { unique: true, sparse: true });
 SimpleBookingSchema.index({ userId: 1 });
 SimpleBookingSchema.index({ assignedDriver: 1 });
 SimpleBookingSchema.index({ status: 1 });

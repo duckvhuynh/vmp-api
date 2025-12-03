@@ -1,7 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import { CreateBookingDto, BookingResponseDto } from './dto/create-booking.dto';
 import { SimpleBooking, SimpleBookingDocument, BookingStatus, BookingEventName } from './schemas/simple-booking.schema';
 import { Quote, QuoteDocument } from '../quotes/schemas/simple-quote.schema';
@@ -10,11 +11,38 @@ import { PlaceType, getPlaceDisplayName } from '../../common/dto/place.dto';
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
+  private readonly frontendUrl: string;
 
   constructor(
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
     @InjectModel(Quote.name) private quoteModel: Model<QuoteDocument>,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') 
+      || this.configService.get<string>('frontendUrl')
+      || 'https://visitmauritiusparadise.com';
+  }
+
+  /**
+   * Generate a short, unique access code (8 alphanumeric characters)
+   */
+  private async generateUniqueAccessCode(): Promise<string> {
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      const bytes = randomBytes(6);
+      const accessCode = bytes.toString('hex').substring(0, 8).toUpperCase();
+      
+      const existing = await this.bookingModel.findOne({ accessCode }).exec();
+      if (!existing) {
+        return accessCode;
+      }
+      attempts++;
+    }
+
+    throw new BadRequestException('Failed to generate unique access code');
+  }
 
   /**
    * Create a booking from a quote
@@ -81,9 +109,13 @@ export class BookingsService {
     const uniqueId = randomUUID().substring(0, 6).toUpperCase();
     const bookingId = `BK-${dateStr}-${uniqueId}`;
 
-    // 6. Create booking (userId is omitted for guest bookings)
+    // 6. Generate unique access code for customer booking page
+    const accessCode = await this.generateUniqueAccessCode();
+
+    // 7. Create booking (userId is omitted for guest bookings)
     const booking = new this.bookingModel({
       bookingId,
+      accessCode,
       status: BookingStatus.PENDING_PAYMENT,
       // userId is not set for guest bookings - can be linked later if user logs in
       
@@ -156,16 +188,18 @@ export class BookingsService {
 
     await booking.save();
 
-    // 7. Mark quote as used
+    // 8. Mark quote as used
     quote.isUsed = true;
     quote.bookingId = booking._id;
     await quote.save();
 
     this.logger.log(`Booking ${bookingId} created successfully from quote ${dto.quoteId}`);
 
-    // 8. Build response
+    // 9. Build response
     return {
       bookingId,
+      accessCode,
+      bookingUrl: `${this.frontendUrl}/my-booking/${accessCode}`,
       status: BookingStatus.PENDING_PAYMENT,
       summary: {
         origin: quote.originName || this.getLocationDisplay(quote.origin),

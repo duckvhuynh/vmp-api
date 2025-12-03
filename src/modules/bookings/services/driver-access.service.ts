@@ -19,19 +19,18 @@ import {
  * Format: bookingId:driverId:timestamp:signature
  * 
  * The token is base64url encoded for URL safety
+ * Note: Tokens do not expire - they remain valid for the lifetime of the booking
  */
 interface DriverAccessPayload {
   bookingId: string;
   driverId: string;
   timestamp: number;
-  expiresAt?: number;
 }
 
 @Injectable()
 export class DriverAccessService {
   private readonly logger = new Logger(DriverAccessService.name);
   private readonly secretKey: string;
-  private readonly tokenExpiryHours: number = 72; // Token valid for 72 hours after pickup
 
   constructor(
     private readonly configService: ConfigService,
@@ -47,17 +46,15 @@ export class DriverAccessService {
   /**
    * Generate a secure driver access token for a booking
    * This token can be used by drivers to access booking details without login
+   * Note: Token never expires - valid for the lifetime of the booking
    */
-  generateDriverAccessToken(bookingId: string, driverId: string, pickupAt: Date): string {
+  generateDriverAccessToken(bookingId: string, driverId: string): string {
     const timestamp = Date.now();
-    // Token expires 72 hours after the scheduled pickup time
-    const expiresAt = pickupAt.getTime() + (this.tokenExpiryHours * 60 * 60 * 1000);
 
     const payload: DriverAccessPayload = {
       bookingId,
       driverId,
       timestamp,
-      expiresAt,
     };
 
     const payloadString = JSON.stringify(payload);
@@ -74,9 +71,10 @@ export class DriverAccessService {
 
   /**
    * Generate the full driver access URL
+   * Note: Token never expires - valid for the lifetime of the booking
    */
-  generateDriverAccessLink(bookingId: string, driverId: string, pickupAt: Date, baseUrl?: string): GenerateDriverLinkResponseDto {
-    const token = this.generateDriverAccessToken(bookingId, driverId, pickupAt);
+  generateDriverAccessLink(bookingId: string, driverId: string, baseUrl?: string): GenerateDriverLinkResponseDto {
+    const token = this.generateDriverAccessToken(bookingId, driverId);
     
     // Get frontend base URL from config or use default
     const frontendBaseUrl = baseUrl 
@@ -85,18 +83,15 @@ export class DriverAccessService {
     
     const driverLink = `${frontendBaseUrl}/driver/booking/${token}`;
     
-    // Calculate expiry time (72 hours after pickup)
-    const expiresAt = new Date(pickupAt.getTime() + (this.tokenExpiryHours * 60 * 60 * 1000));
-    
     return {
       token,
       driverLink,
-      expiresAt,
     };
   }
 
   /**
    * Validate and decode driver access token
+   * Note: Token never expires - only validates signature
    */
   validateAndDecodeToken(token: string): DriverAccessPayload {
     const parts = token.split('.');
@@ -116,11 +111,6 @@ export class DriverAccessService {
     try {
       const payloadString = Buffer.from(payloadBase64, 'base64url').toString('utf-8');
       const payload: DriverAccessPayload = JSON.parse(payloadString);
-
-      // Check expiry
-      if (payload.expiresAt && Date.now() > payload.expiresAt) {
-        throw new UnauthorizedException('Token has expired');
-      }
 
       return payload;
     } catch (error) {

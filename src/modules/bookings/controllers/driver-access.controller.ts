@@ -63,7 +63,7 @@ export class DriverAccessController {
       
       **Token Validation:**
       - Token signature is verified
-      - Token expiry is checked (valid for 72 hours after scheduled pickup)
+      - Token never expires - valid for the lifetime of the booking
       - Driver must be the one assigned to the booking
     `,
   })

@@ -155,6 +155,18 @@ export class BookingResponseDto {
   @ApiProperty({ example: 'BK-20251129-ABC123' })
   bookingId!: string;
 
+  @ApiProperty({
+    description: 'Short access code for booking page (8 characters)',
+    example: 'X7K9M2P4',
+  })
+  accessCode!: string;
+
+  @ApiProperty({
+    description: 'URL to view and manage booking',
+    example: 'https://visitmauritiusparadise.com/my-booking/X7K9M2P4',
+  })
+  bookingUrl!: string;
+
   @ApiProperty({ 
     enum: ['pending_payment', 'confirmed', 'driver_assigned', 'en_route', 'arrived', 'waiting', 'no_show', 'on_trip', 'completed', 'cancelled_by_user', 'cancelled_by_ops', 'payment_failed'],
     example: 'pending_payment'

@@ -488,22 +488,16 @@ export class AutoAssignResultDto {
   distanceKm?: number;
 
   @ApiPropertyOptional({
-    description: 'Driver access link for the assigned driver (share via SMS/WhatsApp)',
+    description: 'Driver access link for the assigned driver (share via SMS/WhatsApp) - never expires',
     example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...',
   })
   driverLink?: string;
 
   @ApiPropertyOptional({
-    description: 'Driver access token (use in API calls)',
+    description: 'Driver access token (use in API calls) - never expires',
     example: 'eyJib29raW5nSWQiOiJCSy0yMDI1MTIwMy1BQkMxMjMi...',
   })
   driverAccessToken?: string;
-
-  @ApiPropertyOptional({
-    description: 'Token expiry time',
-    example: '2025-12-06T10:00:00.000Z',
-  })
-  tokenExpiresAt?: Date;
 }
 
 export class UpdateBookingNotesDto {
@@ -652,6 +646,12 @@ export class BookingListItemDto {
   @ApiProperty({ example: 'BK-20251029-ABC123' })
   bookingId!: string;
 
+  @ApiPropertyOptional({
+    description: 'Short access code for customer booking page (8 characters)',
+    example: 'X7K9M2P4',
+  })
+  accessCode?: string;
+
   @ApiProperty({ enum: BookingStatus, example: BookingStatus.CONFIRMED })
   status!: BookingStatus;
 
@@ -779,22 +779,22 @@ export class BookingDetailResponseDto extends BookingListItemDto {
   assignedDriver?: string;
 
   @ApiPropertyOptional({
-    description: 'Driver access link (for sharing with driver)',
+    description: 'Driver access link (for sharing with driver) - never expires',
     example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...',
   })
   driverLink?: string;
 
   @ApiPropertyOptional({
-    description: 'Driver access token',
+    description: 'Driver access token - never expires',
     example: 'eyJib29raW5nSWQiOiJCSy0yMDI1MTIwMy1BQkMxMjMi...',
   })
   driverAccessToken?: string;
 
   @ApiPropertyOptional({
-    description: 'Driver token expiry time',
-    example: '2025-12-06T10:00:00.000Z',
+    description: 'Customer booking page URL (for sharing with customer)',
+    example: 'https://visitmauritiusparadise.com/my-booking/X7K9M2P4',
   })
-  driverTokenExpiresAt?: Date;
+  bookingUrl?: string;
 
   @ApiProperty({ type: [BookingEventResponseDto] })
   events!: BookingEventResponseDto[];

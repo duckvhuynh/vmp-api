@@ -329,16 +329,10 @@ export class GenerateDriverLinkResponseDto {
   token!: string;
 
   @ApiProperty({
-    description: 'Full URL for driver to access the booking',
+    description: 'Full URL for driver to access the booking (never expires)',
     example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...',
   })
   driverLink!: string;
-
-  @ApiProperty({
-    description: 'Token expiry time (72 hours after pickup)',
-    example: '2025-12-06T10:00:00.000Z',
-  })
-  expiresAt!: Date;
 }
 
 export class DriverActionResponseDto {

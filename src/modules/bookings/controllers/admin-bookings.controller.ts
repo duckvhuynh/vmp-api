@@ -358,12 +358,11 @@ export class AdminBookingsController {
       
       **Use Cases:**
       - Copy link to send via SMS/WhatsApp to driver
-      - Regenerate link if previous one expired
-      - View current link and expiry
+      - Get the link anytime (never expires)
       
       **Note:**
       - Booking must have a driver assigned
-      - Link is valid for 72 hours after the scheduled pickup time
+      - Link never expires - valid for the lifetime of the booking
     `,
   })
   @ApiParam({ name: 'id', description: 'Booking ID' })
@@ -375,7 +374,6 @@ export class AdminBookingsController {
       properties: {
         driverLink: { type: 'string', example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...' },
         token: { type: 'string', example: 'eyJib29raW5nSWQiOiJCSy0yMDI1MTIwMy1BQkMxMjMi...' },
-        expiresAt: { type: 'string', format: 'date-time', example: '2025-12-06T10:00:00.000Z' },
         bookingId: { type: 'string', example: 'BK-20251203-ABC123' },
         driverId: { type: 'string', example: '507f1f77bcf86cd799439011' },
       },
@@ -385,6 +383,40 @@ export class AdminBookingsController {
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'No driver assigned to this booking' })
   async getDriverLink(@Param('id') id: string) {
     return this.adminBookingsService.getDriverLink(id);
+  }
+
+  @Get(':id/customer-link')
+  @Roles('admin', 'dispatcher')
+  @ApiOperation({
+    summary: 'Get customer booking page link',
+    description: `
+      Get the customer booking page link for sharing with the customer.
+      
+      **Use Cases:**
+      - Copy link to send via email/SMS to customer
+      - Include in booking confirmation messages
+      
+      **Note:**
+      - Uses a short 8-character access code for friendlier URLs
+      - Link never expires
+    `,
+  })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Customer link retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        bookingId: { type: 'string', example: 'BK-20251203-ABC123' },
+        accessCode: { type: 'string', example: 'X7K9M2P4' },
+        bookingUrl: { type: 'string', example: 'https://visitmauritiusparadise.com/my-booking/X7K9M2P4' },
+      },
+    },
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Booking not found' })
+  async getCustomerLink(@Param('id') id: string) {
+    return this.adminBookingsService.getCustomerLink(id);
   }
 }
 
