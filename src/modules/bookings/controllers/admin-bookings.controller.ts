@@ -348,5 +348,43 @@ export class AdminBookingsController {
   ): Promise<BookingDetailResponseDto> {
     return this.adminBookingsService.addEvent(id, dto);
   }
+
+  @Get(':id/driver-link')
+  @Roles('admin', 'dispatcher')
+  @ApiOperation({
+    summary: 'Get or regenerate driver access link',
+    description: `
+      Get the driver access link for a booking with an assigned driver.
+      
+      **Use Cases:**
+      - Copy link to send via SMS/WhatsApp to driver
+      - Regenerate link if previous one expired
+      - View current link and expiry
+      
+      **Note:**
+      - Booking must have a driver assigned
+      - Link is valid for 72 hours after the scheduled pickup time
+    `,
+  })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Driver link retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        driverLink: { type: 'string', example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...' },
+        token: { type: 'string', example: 'eyJib29raW5nSWQiOiJCSy0yMDI1MTIwMy1BQkMxMjMi...' },
+        expiresAt: { type: 'string', format: 'date-time', example: '2025-12-06T10:00:00.000Z' },
+        bookingId: { type: 'string', example: 'BK-20251203-ABC123' },
+        driverId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+      },
+    },
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Booking not found' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'No driver assigned to this booking' })
+  async getDriverLink(@Param('id') id: string) {
+    return this.adminBookingsService.getDriverLink(id);
+  }
 }
 

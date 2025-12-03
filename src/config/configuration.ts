@@ -26,6 +26,11 @@ export default () => {
     mongodbUri,
     redisUrl,
     jwtSecret: process.env.JWT_SECRET || 'change-me',
+    // Driver access secret for generating secure driver booking links
+    // Falls back to jwtSecret if not set
+    driverAccessSecret: process.env.DRIVER_ACCESS_SECRET || process.env.JWT_SECRET || 'driver-access-secret-change-me',
+    // Frontend URL for generating driver access links
+    frontendUrl: process.env.FRONTEND_URL || 'https://visitmauritiusparadise.com',
     corsOrigins: (process.env.CORS_ORIGINS || '*').split(',').map((s) => s.trim()),
     // Admin seed configuration
     adminSeed: {

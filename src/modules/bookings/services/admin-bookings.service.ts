@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, FilterQuery } from 'mongoose';
 import { randomUUID } from 'crypto';
@@ -21,6 +21,7 @@ import {
 import { SimpleDriver, SimpleDriverDocument } from '../../drivers/schemas/simple-driver.schema';
 import { PlaceDto, PlaceResponseDto, PlaceType, getPlaceDisplayName } from '../../../common/dto/place.dto';
 import { VehiclesService } from '../../vehicles/services/vehicles.service';
+import { DriverAccessService } from './driver-access.service';
 
 @Injectable()
 export class AdminBookingsService {
@@ -30,6 +31,8 @@ export class AdminBookingsService {
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
     @InjectModel(SimpleDriver.name) private driverModel: Model<SimpleDriverDocument>,
     private readonly vehiclesService: VehiclesService,
+    @Inject(forwardRef(() => DriverAccessService))
+    private readonly driverAccessService: DriverAccessService,
   ) {}
 
   /**
@@ -340,6 +343,13 @@ export class AdminBookingsService {
       }
     }
 
+    // Generate driver access link
+    const driverLinkData = this.driverAccessService.generateDriverAccessLink(
+      booking.bookingId,
+      dto.driverId,
+      booking.pickupAt,
+    );
+
     // Build event description
     let eventDescription = dto.notes || 'Driver assigned by admin';
     if (dto.total !== undefined || dto.baseFare !== undefined) {
@@ -369,7 +379,16 @@ export class AdminBookingsService {
     }
 
     await booking.save();
-    return this.mapToDetail(booking);
+    
+    this.logger.log(`Driver ${dto.driverId} assigned to booking ${booking.bookingId}. Driver link generated.`);
+    
+    // Return response with driver link
+    const response = this.mapToDetail(booking);
+    response.driverLink = driverLinkData.driverLink;
+    response.driverAccessToken = driverLinkData.token;
+    response.driverTokenExpiresAt = driverLinkData.expiresAt;
+    
+    return response;
   }
 
   /**
@@ -485,7 +504,14 @@ export class AdminBookingsService {
 
     await booking.save();
 
-    this.logger.log(`Auto-assigned driver ${selectedDriver.driver._id} to booking ${booking.bookingId}`);
+    // Generate driver access link
+    const driverLinkData = this.driverAccessService.generateDriverAccessLink(
+      booking.bookingId,
+      selectedDriver.driver._id.toString(),
+      booking.pickupAt,
+    );
+
+    this.logger.log(`Auto-assigned driver ${selectedDriver.driver._id} to booking ${booking.bookingId}. Driver link generated.`);
 
     return {
       success: true,
@@ -495,6 +521,9 @@ export class AdminBookingsService {
       message: 'Driver auto-assigned successfully',
       driversConsidered: availableDrivers.length,
       distanceKm,
+      driverLink: driverLinkData.driverLink,
+      driverAccessToken: driverLinkData.token,
+      tokenExpiresAt: driverLinkData.expiresAt,
     };
   }
 
@@ -851,6 +880,37 @@ export class AdminBookingsService {
     return bookings.map(this.mapToListItem);
   }
 
+  /**
+   * Get or regenerate driver access link for a booking
+   */
+  async getDriverLink(id: string): Promise<{
+    driverLink: string;
+    token: string;
+    expiresAt: Date;
+    bookingId: string;
+    driverId: string;
+  }> {
+    const booking = await this.findBookingById(id);
+    
+    if (!booking.assignedDriver) {
+      throw new BadRequestException('No driver assigned to this booking');
+    }
+
+    const driverLinkData = this.driverAccessService.generateDriverAccessLink(
+      booking.bookingId,
+      booking.assignedDriver.toString(),
+      booking.pickupAt,
+    );
+
+    return {
+      driverLink: driverLinkData.driverLink,
+      token: driverLinkData.token,
+      expiresAt: driverLinkData.expiresAt,
+      bookingId: booking.bookingId,
+      driverId: booking.assignedDriver.toString(),
+    };
+  }
+
   // ============ Private Helper Methods ============
 
   private async findBookingById(id: string): Promise<SimpleBookingDocument> {
@@ -955,7 +1015,7 @@ export class AdminBookingsService {
     };
   };
 
-  private mapToDetail = (booking: SimpleBookingDocument): BookingDetailResponseDto => {
+  private mapToDetail = (booking: SimpleBookingDocument, includeDriverLink: boolean = true): BookingDetailResponseDto => {
     // Build origin PlaceResponseDto
     const origin: PlaceResponseDto = {
       type: (booking.originType as PlaceType) || PlaceType.ADDRESS,
@@ -979,6 +1039,27 @@ export class AdminBookingsService {
       longitude: booking.destinationLongitude,
       regionId: booking.destinationRegionId?.toString(),
     };
+
+    // Generate driver link if driver is assigned and link is requested
+    let driverLink: string | undefined;
+    let driverAccessToken: string | undefined;
+    let driverTokenExpiresAt: Date | undefined;
+    
+    if (includeDriverLink && booking.assignedDriver) {
+      try {
+        const driverLinkData = this.driverAccessService.generateDriverAccessLink(
+          booking.bookingId,
+          booking.assignedDriver.toString(),
+          booking.pickupAt,
+        );
+        driverLink = driverLinkData.driverLink;
+        driverAccessToken = driverLinkData.token;
+        driverTokenExpiresAt = driverLinkData.expiresAt;
+      } catch (error) {
+        // Log but don't fail if driver link generation fails
+        this.logger.warn(`Failed to generate driver link for booking ${booking.bookingId}: ${error}`);
+      }
+    }
 
     return {
       _id: booking._id.toString(),
@@ -1015,6 +1096,9 @@ export class AdminBookingsService {
       total: booking.total,
       currency: booking.currency,
       assignedDriver: booking.assignedDriver?.toString(),
+      driverLink,
+      driverAccessToken,
+      driverTokenExpiresAt,
       events: booking.events || [],
       paymentConfirmedAt: booking.paymentConfirmedAt,
       paymentIntentId: booking.paymentIntentId,

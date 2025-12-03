@@ -486,6 +486,24 @@ export class AutoAssignResultDto {
 
   @ApiPropertyOptional({ example: 2.5, description: 'Distance to pickup in km' })
   distanceKm?: number;
+
+  @ApiPropertyOptional({
+    description: 'Driver access link for the assigned driver (share via SMS/WhatsApp)',
+    example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...',
+  })
+  driverLink?: string;
+
+  @ApiPropertyOptional({
+    description: 'Driver access token (use in API calls)',
+    example: 'eyJib29raW5nSWQiOiJCSy0yMDI1MTIwMy1BQkMxMjMi...',
+  })
+  driverAccessToken?: string;
+
+  @ApiPropertyOptional({
+    description: 'Token expiry time',
+    example: '2025-12-06T10:00:00.000Z',
+  })
+  tokenExpiresAt?: Date;
 }
 
 export class UpdateBookingNotesDto {
@@ -759,6 +777,24 @@ export class BookingDetailResponseDto extends BookingListItemDto {
 
   @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011' })
   assignedDriver?: string;
+
+  @ApiPropertyOptional({
+    description: 'Driver access link (for sharing with driver)',
+    example: 'https://visitmauritiusparadise.com/driver/booking/eyJib29raW5nSWQ...',
+  })
+  driverLink?: string;
+
+  @ApiPropertyOptional({
+    description: 'Driver access token',
+    example: 'eyJib29raW5nSWQiOiJCSy0yMDI1MTIwMy1BQkMxMjMi...',
+  })
+  driverAccessToken?: string;
+
+  @ApiPropertyOptional({
+    description: 'Driver token expiry time',
+    example: '2025-12-06T10:00:00.000Z',
+  })
+  driverTokenExpiresAt?: Date;
 
   @ApiProperty({ type: [BookingEventResponseDto] })
   events!: BookingEventResponseDto[];
