@@ -205,12 +205,16 @@ export class FiservService {
 
   /**
    * Handle webhook from Fiserv
+   * Reference: https://docs.fiserv.dev/public/docs/webhooks-and-status-updates-checkout
    */
   async handleWebhook(
     payload: FiservWebhookPayloadDto,
     signature?: string,
   ): Promise<{ success: boolean; bookingId?: string; message: string }> {
-    this.logger.log(`Received Fiserv webhook: ${payload.checkoutId}, status: ${payload.transactionStatus}`);
+    this.logger.log(
+      `Received Fiserv webhook: checkoutId=${payload.checkoutId}, status=${payload.transactionStatus}, ` +
+      `orderId=${payload.orderId || 'N/A'}, retry=${payload.retryNumber || 0}`
+    );
 
     // Verify signature if provided
     if (signature && !this.verifySignature(payload, signature)) {
@@ -220,29 +224,38 @@ export class FiservService {
 
     try {
       // Find booking by payment intent ID (checkoutId)
-      const booking = await this.bookingModel.findOne({
+      let bookingToUpdate = await this.bookingModel.findOne({
         paymentIntentId: payload.checkoutId,
       }).exec();
 
-      if (!booking) {
-        // Try to find by merchant transaction ID
+      if (!bookingToUpdate) {
+        // Try to find by merchant transaction ID (format: TXN-DATE-BOOKINGID)
         const merchantId = payload.merchantTransactionId;
         if (merchantId) {
-          const bookingId = merchantId.split('-').pop(); // Extract booking ID from TXN-DATE-BOOKINGID
-          const bookingByTxn = await this.bookingModel.findOne({
-            bookingId: { $regex: bookingId, $options: 'i' },
+          const bookingIdFromMerchant = merchantId.split('-').pop(); // Extract booking ID
+          bookingToUpdate = await this.bookingModel.findOne({
+            bookingId: { $regex: bookingIdFromMerchant, $options: 'i' },
           }).exec();
+        }
 
-          if (!bookingByTxn) {
-            this.logger.warn(`Booking not found for checkout ${payload.checkoutId}`);
-            return { success: false, message: 'Booking not found' };
-          }
-        } else {
+        // Fallback: Try to find by orderId if provided
+        if (!bookingToUpdate && payload.orderId) {
+          bookingToUpdate = await this.bookingModel.findOne({
+            $or: [
+              { paymentIntentId: payload.orderId },
+              { bookingId: { $regex: payload.orderId, $options: 'i' } },
+            ],
+          }).exec();
+        }
+
+        if (!bookingToUpdate) {
+          this.logger.warn(`Booking not found for checkout ${payload.checkoutId}, merchantTxn: ${merchantId || 'N/A'}, orderId: ${payload.orderId || 'N/A'}`);
           return { success: false, message: 'Booking not found' };
         }
+        
+        // Update the paymentIntentId for future lookups
+        bookingToUpdate.paymentIntentId = payload.checkoutId;
       }
-
-      const bookingToUpdate = booking!;
 
       // Update booking based on transaction status
       switch (payload.transactionStatus) {

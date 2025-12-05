@@ -175,20 +175,39 @@ export class CheckoutDetailsDto {
 
 // ============ Webhook DTOs ============
 
+/**
+ * Fiserv Webhook Payload
+ * Reference: https://docs.fiserv.dev/public/docs/webhooks-and-status-updates-checkout
+ */
 export class FiservWebhookPayloadDto {
-  @ApiProperty({ example: 'b00c083a-bacf-44aa-b64a-efee15dcb4ba' })
+  @ApiPropertyOptional({ description: 'Webhook retry attempt number (0 = first attempt)', example: 0 })
+  @IsOptional()
+  @IsNumber()
+  retryNumber?: number;
+
+  @ApiProperty({ description: 'Fiserv Checkout ID', example: 'b00c083a-bacf-44aa-b64a-efee15dcb4ba' })
+  @IsString()
   checkoutId!: string;
 
-  @ApiProperty({ example: 'TXN-20251129-123456' })
-  merchantTransactionId!: string;
+  @ApiPropertyOptional({ description: 'Order ID (UUID)', example: '91e95c4d-9949-438e-8650-1457188ef016' })
+  @IsOptional()
+  @IsString()
+  orderId?: string;
 
-  @ApiProperty({ example: '120995000' })
+  @ApiPropertyOptional({ description: 'Merchant transaction ID', example: 'TXN-20251129-123456' })
+  @IsOptional()
+  @IsString()
+  merchantTransactionId?: string;
+
+  @ApiProperty({ description: 'Fiserv Store ID', example: '120995000' })
+  @IsString()
   storeId!: string;
 
-  @ApiProperty({ enum: FiservTransactionType })
+  @ApiProperty({ enum: FiservTransactionType, description: 'Transaction type' })
+  @IsEnum(FiservTransactionType)
   transactionType!: FiservTransactionType;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Approved amount details' })
   approvedAmount!: {
     total: number;
     currency: string;
@@ -199,10 +218,11 @@ export class FiservWebhookPayloadDto {
     };
   };
 
-  @ApiProperty({ enum: FiservTransactionStatus })
+  @ApiProperty({ enum: FiservTransactionStatus, description: 'Transaction status' })
+  @IsEnum(FiservTransactionStatus)
   transactionStatus!: FiservTransactionStatus;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Payment method details' })
   paymentMethodUsed?: {
     cards?: {
       cardNumber: string;
@@ -211,7 +231,7 @@ export class FiservWebhookPayloadDto {
     };
   };
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'IPG transaction details' })
   ipgTransactionDetails?: {
     ipgTransactionId: string;
     transactionStatus: string;
