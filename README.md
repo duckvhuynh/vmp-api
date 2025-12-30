@@ -103,7 +103,8 @@ ADMIN_NAME=Admin User
 ADMIN_PHONE=+23012345678
 
 # SMTP Email Configuration (for booking notifications)
-SMTP_HOST=mail.yourdomain.com
+# Using Hostinger SMTP
+SMTP_HOST=smtp.hostinger.com
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=no-reply@yourdomain.com

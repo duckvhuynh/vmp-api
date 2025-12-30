@@ -29,7 +29,7 @@ export class EmailService implements OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     this.config = {
-      host: this.configService.get<string>('smtp.host') || 'mail.visitmauritiusparadise.com',
+      host: this.configService.get<string>('smtp.host') || 'smtp.hostinger.com',
       port: this.configService.get<number>('smtp.port') || 465,
       secure: this.configService.get<boolean>('smtp.secure') !== false, // default to true for port 465
       user: this.configService.get<string>('smtp.user') || '',
