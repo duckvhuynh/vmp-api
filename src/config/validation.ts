@@ -38,4 +38,13 @@ export const validationSchema = Joi.object({
   FISERV_WEBHOOK_URL: Joi.string().uri().allow(''),
   FISERV_SUCCESS_URL: Joi.string().uri().allow(''),
   FISERV_FAILURE_URL: Joi.string().uri().allow(''),
+  // SMTP configuration for email notifications (optional)
+  SMTP_HOST: Joi.string().allow(''),
+  SMTP_PORT: Joi.number().default(465),
+  SMTP_SECURE: Joi.string().valid('true', 'false').default('true'),
+  SMTP_USER: Joi.string().allow(''),
+  SMTP_PASS: Joi.string().allow(''),
+  SMTP_FROM: Joi.string().email().allow(''),
+  SMTP_FROM_NAME: Joi.string().allow(''),
+  SMTP_ADMIN_EMAIL: Joi.string().email().allow(''),
 }).or('MONGODB_URI', 'MONGO_URI').or('REDIS_URL', 'REDIS_HOST');

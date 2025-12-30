@@ -23,6 +23,7 @@ import { SimpleDriver, SimpleDriverDocument } from '../../drivers/schemas/simple
 import { PlaceDto, PlaceResponseDto, PlaceType, getPlaceDisplayName } from '../../../common/dto/place.dto';
 import { VehiclesService } from '../../vehicles/services/vehicles.service';
 import { DriverAccessService } from './driver-access.service';
+import { NotificationService } from '../../notifications/services/notification.service';
 
 @Injectable()
 export class AdminBookingsService {
@@ -36,6 +37,7 @@ export class AdminBookingsService {
     @Inject(forwardRef(() => DriverAccessService))
     private readonly driverAccessService: DriverAccessService,
     private readonly configService: ConfigService,
+    private readonly notificationService: NotificationService,
   ) {
     this.frontendUrl = this.configService.get<string>('FRONTEND_URL') 
       || this.configService.get<string>('frontendUrl')
@@ -426,6 +428,16 @@ export class AdminBookingsService {
     
     this.logger.log(`Driver ${dto.driverId} assigned to booking ${booking.bookingId}. Driver link generated (never expires).`);
     
+    // Send driver assignment notifications (to driver and customer)
+    // Run async without blocking the response
+    this.notificationService.onDriverAssigned(
+      booking.bookingId,
+      dto.driverId,
+      driverLinkData.driverLink,
+    ).catch((err) => {
+      this.logger.error(`Failed to send driver assignment notifications: ${err.message}`);
+    });
+    
     // Return response with driver link
     const response = this.mapToDetail(booking);
     response.driverLink = driverLinkData.driverLink;
@@ -554,6 +566,16 @@ export class AdminBookingsService {
     );
 
     this.logger.log(`Auto-assigned driver ${selectedDriver.driver._id} to booking ${booking.bookingId}. Driver link generated (never expires).`);
+
+    // Send driver assignment notifications (to driver and customer)
+    // Run async without blocking the response
+    this.notificationService.onDriverAssigned(
+      booking.bookingId,
+      selectedDriver.driver._id.toString(),
+      driverLinkData.driverLink,
+    ).catch((err) => {
+      this.logger.error(`Failed to send driver assignment notifications: ${err.message}`);
+    });
 
     return {
       success: true,
@@ -722,6 +744,30 @@ export class AdminBookingsService {
     });
 
     await booking.save();
+
+    // Send booking update notification to driver (if assigned)
+    if (booking.assignedDriver) {
+      // Generate driver link for the notification
+      let driverLink: string | undefined;
+      try {
+        const driverLinkData = this.driverAccessService.generateDriverAccessLink(
+          booking.bookingId,
+          booking.assignedDriver.toString(),
+        );
+        driverLink = driverLinkData.driverLink;
+      } catch (err) {
+        this.logger.warn(`Could not generate driver link for update notification`);
+      }
+
+      this.notificationService.onBookingUpdated(
+        booking.bookingId,
+        booking.assignedDriver.toString(),
+        driverLink,
+      ).catch((err) => {
+        this.logger.error(`Failed to send booking update notification: ${err.message}`);
+      });
+    }
+
     return this.mapToDetail(booking);
   }
 

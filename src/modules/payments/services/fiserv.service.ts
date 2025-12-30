@@ -19,6 +19,7 @@ import {
   FiservPaymentMethod,
 } from '../dto/fiserv-checkout.dto';
 import { SimpleBooking, SimpleBookingDocument, BookingStatus, BookingEventName } from '../../bookings/schemas/simple-booking.schema';
+import { NotificationService } from '../../notifications/services/notification.service';
 
 export interface FiservConfig {
   baseUrl: string;
@@ -39,6 +40,7 @@ export class FiservService {
   constructor(
     private readonly configService: ConfigService,
     @InjectModel(SimpleBooking.name) private bookingModel: Model<SimpleBookingDocument>,
+    private readonly notificationService: NotificationService,
   ) {
     this.config = {
       baseUrl: this.configService.get<string>('fiserv.baseUrl') || 'https://api.checkout-lane.com/v1',
@@ -269,6 +271,12 @@ export class FiservService {
             description: `Payment approved. Amount: ${payload.approvedAmount.total} ${payload.approvedAmount.currency}`,
           });
           this.logger.log(`Payment approved for booking ${bookingToUpdate.bookingId}`);
+          
+          // Send booking confirmation notifications (to admin and customer)
+          // Run async without blocking webhook response
+          this.notificationService.onBookingConfirmed(bookingToUpdate.bookingId).catch((err) => {
+            this.logger.error(`Failed to send booking confirmation notifications: ${err.message}`);
+          });
           break;
 
         case FiservTransactionStatus.DECLINED:

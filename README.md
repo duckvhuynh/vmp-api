@@ -11,6 +11,7 @@ A comprehensive NestJS-based RESTful API for airport taxi booking and fleet mana
 ✅ **Dispatch System** - Automatic driver assignment with smart matching algorithms  
 ✅ **Fleet Management** - Vehicle management with multi-language support  
 ✅ **Payment Integration** - Payment intent creation, confirmation, and refunds  
+✅ **Email Notifications** - SMTP-based notifications for bookings, driver assignments, and updates  
 ✅ **Webhooks** - External integrations for payments, flights, and SMS  
 ✅ **Admin Dashboard** - Statistics, health monitoring, and revenue reports  
 ✅ **Swagger Documentation** - Auto-generated interactive API docs  
@@ -69,6 +70,7 @@ src/
 │   ├── drivers/        # Driver operations
 │   ├── dispatch/       # Driver assignment and dispatch
 │   ├── payments/       # Payment processing
+│   ├── notifications/  # Email notifications (SMTP)
 │   ├── webhooks/       # External webhooks
 │   ├── admin/          # Admin dashboard
 │   └── health/         # Health checks
@@ -99,6 +101,16 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=SecurePass123
 ADMIN_NAME=Admin User
 ADMIN_PHONE=+23012345678
+
+# SMTP Email Configuration (for booking notifications)
+SMTP_HOST=mail.yourdomain.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=no-reply@yourdomain.com
+SMTP_PASS=your-smtp-password
+SMTP_FROM=no-reply@yourdomain.com
+SMTP_FROM_NAME=Your Company Name
+SMTP_ADMIN_EMAIL=admin@yourdomain.com
 ```
 
 **Note:** See [SEED_ADMIN_GUIDE.md](./SEED_ADMIN_GUIDE.md) for details on seeding admin accounts.

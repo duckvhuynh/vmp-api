@@ -63,5 +63,16 @@ export default () => {
       defaultSuccessUrl: process.env.FISERV_SUCCESS_URL || 'https://visitmauritiusparadise.com/booking/success',
       defaultFailureUrl: process.env.FISERV_FAILURE_URL || 'https://visitmauritiusparadise.com/booking/failed',
     },
+    // SMTP configuration for email notifications
+    smtp: {
+      host: process.env.SMTP_HOST || 'mail.visitmauritiusparadise.com',
+      port: parseInt(process.env.SMTP_PORT || '465', 10),
+      secure: process.env.SMTP_SECURE !== 'false', // default to true for port 465
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+      from: process.env.SMTP_FROM || 'no-reply@visitmauritiusparadise.com',
+      fromName: process.env.SMTP_FROM_NAME || 'Visit Mauritius Paradise',
+      adminEmail: process.env.SMTP_ADMIN_EMAIL || process.env.ADMIN_EMAIL || '',
+    },
   };
 };

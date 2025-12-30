@@ -20,6 +20,7 @@ import { SeedModule } from './modules/seed/seed.module';
 import { MinioModule } from './modules/minio/minio.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     MinioModule,
     UploadModule,
     ReportsModule,
+    NotificationsModule,
   ],
   providers: [
     {
