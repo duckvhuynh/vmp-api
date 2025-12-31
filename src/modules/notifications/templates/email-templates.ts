@@ -1,11 +1,16 @@
 /**
  * Email Templates for VMP Booking System
  * 
+ * Brand Colors:
+ * - Primary: #022926 (dark green)
+ * - Accent: #bcaa72 (gold)
+ * 
  * Templates for:
  * - New booking notification (to admin)
  * - Booking confirmed (to customer)
  * - Driver assigned (to driver)
  * - Booking updated (to driver)
+ * - Driver unassigned (to driver)
  */
 
 export interface BookingEmailData {
@@ -67,7 +72,7 @@ function baseLayout(content: string, title: string): string {
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     .header {
-      background: linear-gradient(135deg, #1e88e5 0%, #0d47a1 100%);
+      background: #022926;
       color: white;
       padding: 30px 20px;
       text-align: center;
@@ -76,24 +81,26 @@ function baseLayout(content: string, title: string): string {
       margin: 0;
       font-size: 24px;
       font-weight: 600;
+      color: #ffffff;
     }
     .header p {
       margin: 10px 0 0;
       opacity: 0.9;
       font-size: 14px;
+      color: #bcaa72;
     }
     .content {
       padding: 30px 25px;
     }
     .booking-id {
-      background: #e3f2fd;
-      border-left: 4px solid #1e88e5;
+      background: #f8f6f1;
+      border-left: 4px solid #bcaa72;
       padding: 15px;
       margin-bottom: 20px;
       border-radius: 0 8px 8px 0;
     }
     .booking-id strong {
-      color: #1e88e5;
+      color: #022926;
       font-size: 18px;
     }
     .section {
@@ -102,10 +109,10 @@ function baseLayout(content: string, title: string): string {
     .section-title {
       font-size: 16px;
       font-weight: 600;
-      color: #1e88e5;
+      color: #022926;
       margin-bottom: 12px;
       padding-bottom: 8px;
-      border-bottom: 2px solid #e3f2fd;
+      border-bottom: 2px solid #bcaa72;
     }
     .detail-row {
       display: flex;
@@ -126,8 +133,8 @@ function baseLayout(content: string, title: string): string {
       flex: 1;
     }
     .highlight {
-      background: #fff3e0;
-      border: 1px solid #ff9800;
+      background: #f8f6f1;
+      border: 1px solid #bcaa72;
       border-radius: 8px;
       padding: 15px;
       margin: 20px 0;
@@ -137,20 +144,29 @@ function baseLayout(content: string, title: string): string {
       border-color: #4caf50;
     }
     .highlight.info {
-      background: #e3f2fd;
-      border-color: #1e88e5;
+      background: #f8f6f1;
+      border-color: #bcaa72;
+    }
+    .highlight.warning {
+      background: #fff8e1;
+      border-color: #f9a825;
+    }
+    .highlight.error {
+      background: #ffebee;
+      border-color: #c62828;
     }
     .price-box {
-      background: #f5f5f5;
+      background: #f8f6f1;
       border-radius: 8px;
       padding: 20px;
       text-align: center;
       margin: 20px 0;
+      border: 1px solid #bcaa72;
     }
     .price-amount {
       font-size: 32px;
       font-weight: 700;
-      color: #1e88e5;
+      color: #022926;
     }
     .price-currency {
       font-size: 16px;
@@ -159,8 +175,8 @@ function baseLayout(content: string, title: string): string {
     .btn {
       display: inline-block;
       padding: 14px 28px;
-      background: linear-gradient(135deg, #1e88e5 0%, #0d47a1 100%);
-      color: white !important;
+      background: #022926;
+      color: #ffffff !important;
       text-decoration: none;
       border-radius: 8px;
       font-weight: 600;
@@ -171,23 +187,30 @@ function baseLayout(content: string, title: string): string {
     .btn:hover {
       opacity: 0.9;
     }
+    .btn-secondary {
+      background: #bcaa72;
+      color: #022926 !important;
+    }
     .footer {
-      background: #f8f9fa;
+      background: #022926;
       padding: 20px;
       text-align: center;
       font-size: 12px;
-      color: #666;
-      border-top: 1px solid #e0e0e0;
+      color: #bcaa72;
     }
     .footer a {
-      color: #1e88e5;
+      color: #bcaa72;
       text-decoration: none;
+    }
+    .footer p {
+      margin: 5px 0;
     }
     .route-box {
       background: #fafafa;
       border-radius: 8px;
       padding: 20px;
       margin: 15px 0;
+      border: 1px solid #e0e0e0;
     }
     .route-item {
       display: flex;
@@ -200,7 +223,7 @@ function baseLayout(content: string, title: string): string {
     .route-icon {
       width: 36px;
       height: 36px;
-      background: #1e88e5;
+      background: #022926;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -211,7 +234,8 @@ function baseLayout(content: string, title: string): string {
       flex-shrink: 0;
     }
     .route-icon.destination {
-      background: #4caf50;
+      background: #bcaa72;
+      color: #022926;
     }
     .route-text {
       flex: 1;
@@ -230,9 +254,17 @@ function baseLayout(content: string, title: string): string {
     }
     .arrow-down {
       margin-left: 18px;
-      color: #ccc;
+      color: #bcaa72;
       font-size: 20px;
       padding: 5px 0;
+    }
+    .divider {
+      height: 1px;
+      background: #bcaa72;
+      margin: 20px 0;
+    }
+    a {
+      color: #022926;
     }
     @media only screen and (max-width: 600px) {
       .container {
@@ -256,7 +288,7 @@ function baseLayout(content: string, title: string): string {
   <div class="container">
     ${content}
     <div class="footer">
-      <p>© ${new Date().getFullYear()} Visit Mauritius Paradise. All rights reserved.</p>
+      <p>&copy; ${new Date().getFullYear()} Visit Mauritius Paradise. All rights reserved.</p>
       <p>
         <a href="https://visitmauritiusparadise.com">www.visitmauritiusparadise.com</a>
       </p>
@@ -289,7 +321,7 @@ export function formatDateTime(date: Date | string): string {
 export function newBookingAdminTemplate(data: BookingEmailData): string {
   const content = `
     <div class="header">
-      <h1>🚗 New Booking Received!</h1>
+      <h1>New Booking Received</h1>
       <p>A new booking has been confirmed and paid</p>
     </div>
     <div class="content">
@@ -298,7 +330,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">📍 Trip Details</div>
+        <div class="section-title">Trip Details</div>
         <div class="route-box">
           <div class="route-item">
             <div class="route-icon">A</div>
@@ -307,7 +339,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
               <div class="route-value">${data.originName}</div>
             </div>
           </div>
-          <div class="arrow-down">↓</div>
+          <div class="arrow-down">|</div>
           <div class="route-item">
             <div class="route-icon destination">B</div>
             <div class="route-text">
@@ -319,7 +351,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">🕐 Pickup Time</div>
+        <div class="section-title">Pickup Time</div>
         <div class="highlight info">
           <strong>${data.pickupAt}</strong>
           ${data.flightNumber ? `<br/>Flight: ${data.flightNumber}` : ''}
@@ -327,7 +359,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">👤 Passenger Information</div>
+        <div class="section-title">Passenger Information</div>
         <div class="detail-row">
           <span class="detail-label">Name:</span>
           <span class="detail-value">${data.passengerName}</span>
@@ -365,7 +397,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">🚘 Vehicle</div>
+        <div class="section-title">Vehicle</div>
         <div class="detail-row">
           <span class="detail-label">Class:</span>
           <span class="detail-value">${data.vehicleClass}</span>
@@ -384,7 +416,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="highlight success">
-        <strong>✅ Payment Confirmed</strong>
+        <strong>Payment Confirmed</strong>
         <p style="margin: 5px 0 0;">Please assign a driver to this booking.</p>
       </div>
 
@@ -405,7 +437,7 @@ export function newBookingAdminTemplate(data: BookingEmailData): string {
 export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string {
   const content = `
     <div class="header">
-      <h1>✅ Booking Confirmed!</h1>
+      <h1>Booking Confirmed</h1>
       <p>Thank you for booking with Visit Mauritius Paradise</p>
     </div>
     <div class="content">
@@ -419,7 +451,7 @@ export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string
       </div>
 
       <div class="section">
-        <div class="section-title">📍 Your Trip</div>
+        <div class="section-title">Your Trip</div>
         <div class="route-box">
           <div class="route-item">
             <div class="route-icon">A</div>
@@ -428,7 +460,7 @@ export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string
               <div class="route-value">${data.originName}</div>
             </div>
           </div>
-          <div class="arrow-down">↓</div>
+          <div class="arrow-down">|</div>
           <div class="route-item">
             <div class="route-icon destination">B</div>
             <div class="route-text">
@@ -440,7 +472,7 @@ export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string
       </div>
 
       <div class="section">
-        <div class="section-title">🕐 Pickup Details</div>
+        <div class="section-title">Pickup Details</div>
         <div class="highlight info">
           <strong>${data.pickupAt}</strong>
           ${data.flightNumber ? `<br/>Flight Number: ${data.flightNumber}` : ''}
@@ -448,7 +480,7 @@ export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string
       </div>
 
       <div class="section">
-        <div class="section-title">🚘 Vehicle</div>
+        <div class="section-title">Vehicle</div>
         <div class="detail-row">
           <span class="detail-label">Vehicle Type:</span>
           <span class="detail-value">${data.vehicleName || data.vehicleClass}</span>
@@ -475,9 +507,9 @@ export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string
       ` : ''}
 
       <div class="section" style="margin-top: 30px;">
-        <div class="section-title">📞 Need Help?</div>
+        <div class="section-title">Need Help?</div>
         <p>If you have any questions or need to make changes to your booking, please contact us:</p>
-        <p>📧 Email: info@visitmauritiusparadise.com</p>
+        <p>Email: info@visitmauritiusparadise.com</p>
       </div>
     </div>
   `;
@@ -491,7 +523,7 @@ export function bookingConfirmedCustomerTemplate(data: BookingEmailData): string
 export function driverAssignedTemplate(data: BookingEmailData): string {
   const content = `
     <div class="header">
-      <h1>🚗 New Trip Assignment</h1>
+      <h1>New Trip Assignment</h1>
       <p>You have been assigned to a new booking</p>
     </div>
     <div class="content">
@@ -500,13 +532,13 @@ export function driverAssignedTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="highlight info">
-        <strong>⏰ Pickup Time</strong>
+        <strong>Pickup Time</strong>
         <p style="margin: 5px 0 0; font-size: 18px;">${data.pickupAt}</p>
         ${data.flightNumber ? `<p style="margin: 5px 0 0;">Flight: <strong>${data.flightNumber}</strong></p>` : ''}
       </div>
 
       <div class="section">
-        <div class="section-title">📍 Route</div>
+        <div class="section-title">Route</div>
         <div class="route-box">
           <div class="route-item">
             <div class="route-icon">A</div>
@@ -515,7 +547,7 @@ export function driverAssignedTemplate(data: BookingEmailData): string {
               <div class="route-value">${data.originName}</div>
             </div>
           </div>
-          <div class="arrow-down">↓</div>
+          <div class="arrow-down">|</div>
           <div class="route-item">
             <div class="route-icon destination">B</div>
             <div class="route-text">
@@ -527,7 +559,7 @@ export function driverAssignedTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">👤 Passenger</div>
+        <div class="section-title">Passenger</div>
         <div class="detail-row">
           <span class="detail-label">Name:</span>
           <span class="detail-value">${data.passengerName}</span>
@@ -559,7 +591,7 @@ export function driverAssignedTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">💰 Trip Value</div>
+        <div class="section-title">Trip Value</div>
         <div class="price-box">
           <div class="price-amount">${data.currency} ${data.total.toFixed(2)}</div>
         </div>
@@ -584,22 +616,22 @@ export function driverAssignedTemplate(data: BookingEmailData): string {
  */
 export function bookingUpdatedDriverTemplate(data: BookingEmailData): string {
   const content = `
-    <div class="header" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
-      <h1>⚠️ Booking Updated</h1>
-      <p>Important: Trip details have been modified</p>
+    <div class="header" style="background: #f9a825;">
+      <h1 style="color: #022926;">Booking Updated</h1>
+      <p style="color: #022926;">Important: Trip details have been modified</p>
     </div>
     <div class="content">
       <div class="booking-id">
         <strong>Booking ID: ${data.bookingId}</strong>
       </div>
 
-      <div class="highlight">
-        <strong>📢 Attention Required!</strong>
+      <div class="highlight warning">
+        <strong>Attention Required</strong>
         <p style="margin: 5px 0 0;">The details for your assigned trip have been updated. Please review the changes below.</p>
       </div>
 
       <div class="section">
-        <div class="section-title">⏰ Updated Pickup Time</div>
+        <div class="section-title">Updated Pickup Time</div>
         <div class="highlight info">
           <strong>${data.pickupAt}</strong>
           ${data.flightNumber ? `<br/>Flight: <strong>${data.flightNumber}</strong>` : ''}
@@ -607,7 +639,7 @@ export function bookingUpdatedDriverTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">📍 Route</div>
+        <div class="section-title">Route</div>
         <div class="route-box">
           <div class="route-item">
             <div class="route-icon">A</div>
@@ -616,7 +648,7 @@ export function bookingUpdatedDriverTemplate(data: BookingEmailData): string {
               <div class="route-value">${data.originName}</div>
             </div>
           </div>
-          <div class="arrow-down">↓</div>
+          <div class="arrow-down">|</div>
           <div class="route-item">
             <div class="route-icon destination">B</div>
             <div class="route-text">
@@ -628,7 +660,7 @@ export function bookingUpdatedDriverTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">👤 Passenger Details</div>
+        <div class="section-title">Passenger Details</div>
         <div class="detail-row">
           <span class="detail-label">Name:</span>
           <span class="detail-value">${data.passengerName}</span>
@@ -682,7 +714,7 @@ export function bookingUpdatedDriverTemplate(data: BookingEmailData): string {
 export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
   const content = `
     <div class="header">
-      <h1>🚗 Driver Assigned!</h1>
+      <h1>Driver Assigned</h1>
       <p>Your driver details for your upcoming trip</p>
     </div>
     <div class="content">
@@ -691,12 +723,12 @@ export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="highlight success">
-        <strong>✅ A driver has been assigned to your booking!</strong>
+        <strong>A driver has been assigned to your booking!</strong>
       </div>
 
       ${data.driverName ? `
       <div class="section">
-        <div class="section-title">👨‍✈️ Your Driver</div>
+        <div class="section-title">Your Driver</div>
         <div class="detail-row">
           <span class="detail-label">Name:</span>
           <span class="detail-value">${data.driverName}</span>
@@ -711,7 +743,7 @@ export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
       ` : ''}
 
       <div class="section">
-        <div class="section-title">⏰ Pickup Details</div>
+        <div class="section-title">Pickup Details</div>
         <div class="highlight info">
           <strong>${data.pickupAt}</strong>
           ${data.flightNumber ? `<br/>Flight: ${data.flightNumber}` : ''}
@@ -719,7 +751,7 @@ export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
       </div>
 
       <div class="section">
-        <div class="section-title">📍 Your Trip</div>
+        <div class="section-title">Your Trip</div>
         <div class="route-box">
           <div class="route-item">
             <div class="route-icon">A</div>
@@ -728,7 +760,7 @@ export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
               <div class="route-value">${data.originName}</div>
             </div>
           </div>
-          <div class="arrow-down">↓</div>
+          <div class="arrow-down">|</div>
           <div class="route-item">
             <div class="route-icon destination">B</div>
             <div class="route-text">
@@ -746,9 +778,9 @@ export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
       ` : ''}
 
       <div class="section" style="margin-top: 30px;">
-        <div class="section-title">📞 Need Help?</div>
+        <div class="section-title">Need Help?</div>
         <p>If you have any questions, please contact us:</p>
-        <p>📧 Email: info@visitmauritiusparadise.com</p>
+        <p>Email: info@visitmauritiusparadise.com</p>
       </div>
     </div>
   `;
@@ -756,3 +788,82 @@ export function driverAssignedCustomerTemplate(data: BookingEmailData): string {
   return baseLayout(content, 'Driver Assigned - Visit Mauritius Paradise');
 }
 
+/**
+ * Driver Unassigned Email - Sent to Driver when they are removed from a booking
+ */
+export function driverUnassignedTemplate(data: BookingEmailData & { unassignReason?: string }): string {
+  const content = `
+    <div class="header" style="background: #c62828;">
+      <h1>Trip Assignment Cancelled</h1>
+      <p style="color: #ffffff;">You have been unassigned from this booking</p>
+    </div>
+    <div class="content">
+      <div class="booking-id">
+        <strong>Booking ID: ${data.bookingId}</strong>
+      </div>
+
+      <div class="highlight error">
+        <strong>Assignment Cancelled</strong>
+        <p style="margin: 5px 0 0;">You are no longer assigned to this trip. ${data.unassignReason ? `Reason: ${data.unassignReason}` : 'The booking has been reassigned or cancelled.'}</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Trip Details (For Reference)</div>
+        <div class="route-box" style="opacity: 0.7;">
+          <div class="route-item">
+            <div class="route-icon" style="background: #9e9e9e;">A</div>
+            <div class="route-text">
+              <div class="route-label">Pickup Was</div>
+              <div class="route-value">${data.originName}</div>
+            </div>
+          </div>
+          <div class="arrow-down">|</div>
+          <div class="route-item">
+            <div class="route-icon destination" style="background: #9e9e9e;">B</div>
+            <div class="route-text">
+              <div class="route-label">Drop-off Was</div>
+              <div class="route-value">${data.destinationName}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Scheduled Pickup Was</div>
+        <div style="padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center; opacity: 0.7;">
+          <span style="text-decoration: line-through;">${data.pickupAt}</span>
+          ${data.flightNumber ? `<br/><span style="text-decoration: line-through;">Flight: ${data.flightNumber}</span>` : ''}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Passenger Was</div>
+        <div style="opacity: 0.7;">
+          <div class="detail-row">
+            <span class="detail-label">Name:</span>
+            <span class="detail-value">${data.passengerName}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Passengers:</span>
+            <span class="detail-value">${data.passengers}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Luggage:</span>
+            <span class="detail-value">${data.luggage}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="margin-top: 30px; text-align: center;">
+        <p style="color: #666;">
+          <strong>Please disregard any previous notifications about this trip.</strong>
+        </p>
+        <p style="color: #666; font-size: 14px;">
+          If you believe this was done in error, please contact dispatch immediately.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return baseLayout(content, 'Trip Assignment Cancelled - Visit Mauritius Paradise');
+}

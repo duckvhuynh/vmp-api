@@ -686,6 +686,16 @@ export class AdminBookingsService {
     });
 
     await booking.save();
+
+    // Send notification to the unassigned driver
+    this.notificationService.onDriverUnassigned(
+      booking.bookingId,
+      previousDriverId.toString(),
+      reason,
+    ).catch((err) => {
+      this.logger.error(`Failed to send driver unassign notification: ${err.message}`);
+    });
+
     return this.mapToDetail(booking);
   }
 

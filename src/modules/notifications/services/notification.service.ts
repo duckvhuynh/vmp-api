@@ -11,6 +11,7 @@ import {
   driverAssignedTemplate,
   bookingUpdatedDriverTemplate,
   driverAssignedCustomerTemplate,
+  driverUnassignedTemplate,
 } from '../templates/email-templates';
 import { SimpleBooking, SimpleBookingDocument } from '../../bookings/schemas/simple-booking.schema';
 import { SimpleDriver, SimpleDriverDocument } from '../../drivers/schemas/simple-driver.schema';
@@ -246,6 +247,41 @@ export class NotificationService {
 
     if (driverEmailSent) {
       this.logger.log(`Booking update notification sent to driver ${driverInfo.email} for booking ${bookingId}`);
+    }
+  }
+
+  /**
+   * Send notification when driver is unassigned from booking
+   * - Sends email to driver (trip cancelled/unassigned notification)
+   */
+  async onDriverUnassigned(bookingId: string, driverId: string, reason?: string): Promise<void> {
+    this.logger.log(`Sending driver unassigned notification for booking ${bookingId}, driver ${driverId}`);
+
+    const bookingData = await this.getBookingEmailData(bookingId);
+    if (!bookingData) {
+      return;
+    }
+
+    const driverInfo = await this.getDriverInfo(driverId);
+    if (!driverInfo) {
+      this.logger.warn(`Driver ${driverId} not found, skipping unassign notification`);
+      return;
+    }
+
+    // Add driver info to booking data
+    bookingData.driverName = driverInfo.name;
+    bookingData.driverPhone = driverInfo.phone;
+    bookingData.driverEmail = driverInfo.email;
+
+    // Send to driver
+    const driverEmailSent = await this.emailService.sendEmail({
+      to: driverInfo.email,
+      subject: `❌ Trip Assignment Cancelled - ${bookingData.bookingId}`,
+      html: driverUnassignedTemplate({ ...bookingData, unassignReason: reason }),
+    });
+
+    if (driverEmailSent) {
+      this.logger.log(`Driver unassign notification sent to ${driverInfo.email} for booking ${bookingId}`);
     }
   }
 
