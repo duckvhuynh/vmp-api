@@ -178,6 +178,46 @@ export class PaymentsController {
     };
   }
 
+  @Post('verify/:bookingId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify and sync payment status',
+    description: `
+      Verify payment status with Fiserv and update booking if payment was successful.
+      
+      **Use this on the success page** to ensure booking status is updated even if webhook was delayed.
+      
+      **Flow:**
+      1. Frontend redirects to success page after Fiserv payment
+      2. Frontend calls this endpoint with bookingId
+      3. Backend checks Fiserv for payment status
+      4. If APPROVED, booking is marked as confirmed
+      5. Returns updated booking status
+      
+      **This is a fallback mechanism** - normally the webhook handles this automatically.
+    `,
+  })
+  @ApiParam({ name: 'bookingId', description: 'Booking ID to verify payment for' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment verification result',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        bookingId: { type: 'string' },
+        bookingStatus: { type: 'string' },
+        paymentStatus: { type: 'string' },
+        message: { type: 'string' },
+        verified: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Booking not found' })
+  async verifyPayment(@Param('bookingId') bookingId: string) {
+    return this.fiservService.verifyAndSyncPayment(bookingId);
+  }
+
   // ============ Admin Payment Endpoints ============
 
   @Post('refund')

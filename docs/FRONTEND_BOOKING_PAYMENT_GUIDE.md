@@ -123,9 +123,13 @@ Complete documentation for integrating the VMP booking and payment system.
 
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| POST | `/payments/checkout` | Optional | Create Fiserv checkout |
+| POST | `/payments/checkout` | None | Create Fiserv checkout |
+| POST | `/payments/verify/:bookingId` | None | **Verify & sync payment status** |
 | GET | `/payments/checkout/:checkoutId` | JWT | Get checkout status |
 | GET | `/payments/status` | None | Check if payment service available |
+
+> **Important:** Always call `POST /payments/verify/:bookingId` on your success page!  
+> This ensures the booking is marked as paid even if the Fiserv webhook is delayed.
 
 ---
 
@@ -717,9 +721,115 @@ window.location.href = checkout.redirectionUrl;
 
 ## 7. Step 4: Handle Payment Result
 
+### Payment Verification API (IMPORTANT!)
+
+After Fiserv redirects the customer back to your `successUrl`, you **MUST** call the payment verification endpoint to ensure the booking status is updated.
+
+> **Why is this needed?**  
+> Fiserv sends a webhook to update booking status, but webhooks can be delayed or fail.
+> The verification endpoint checks payment status directly with Fiserv and updates the booking.
+
+#### Endpoint
+
+```
+POST /api/v1/payments/verify/:bookingId
+```
+
+#### Request
+
+No body required - just the `bookingId` in the URL.
+
+```typescript
+const response = await fetch(`/api/v1/payments/verify/${bookingId}`, {
+  method: 'POST',
+});
+const result = await response.json();
+```
+
+#### Response
+
+```typescript
+interface VerifyPaymentResponse {
+  success: boolean;           // true if payment is confirmed
+  bookingId: string;          // Booking ID
+  bookingStatus: string;      // 'confirmed', 'pending_payment', 'payment_failed'
+  paymentStatus: string;      // 'APPROVED', 'DECLINED', 'WAITING', 'NOT_INITIATED'
+  message: string;            // Human-readable message
+  verified: boolean;          // true if we could check with Fiserv
+}
+```
+
+#### Example Responses
+
+**Payment Approved:**
+```json
+{
+  "success": true,
+  "bookingId": "BK-20251229-ABC123",
+  "bookingStatus": "confirmed",
+  "paymentStatus": "APPROVED",
+  "message": "Payment verified and booking confirmed",
+  "verified": true
+}
+```
+
+**Payment Declined:**
+```json
+{
+  "success": false,
+  "bookingId": "BK-20251229-ABC123",
+  "bookingStatus": "payment_failed",
+  "paymentStatus": "DECLINED",
+  "message": "Payment declined",
+  "verified": true
+}
+```
+
+**Still Processing:**
+```json
+{
+  "success": false,
+  "bookingId": "BK-20251229-ABC123",
+  "bookingStatus": "pending_payment",
+  "paymentStatus": "WAITING",
+  "message": "Payment is still being processed. Please wait.",
+  "verified": true
+}
+```
+
+#### Usage Pattern
+
+```typescript
+const verifyPayment = async (bookingId: string): Promise<void> => {
+  const response = await fetch(`/api/v1/payments/verify/${bookingId}`, { method: 'POST' });
+  const result = await response.json();
+  
+  if (result.success) {
+    // Payment confirmed - show success
+    return;
+  }
+  
+  if (result.paymentStatus === 'WAITING') {
+    // Still processing - wait and retry
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    return verifyPayment(bookingId); // Retry
+  }
+  
+  if (result.paymentStatus === 'DECLINED' || result.paymentStatus === 'FAILED') {
+    // Payment failed - redirect to failure page
+    window.location.href = `/booking/failed?bookingId=${bookingId}`;
+  }
+};
+```
+
+---
+
 ### Success Page
 
 Create a page at your `successUrl` to handle successful payments:
+
+> **IMPORTANT:** Always call `POST /payments/verify/:bookingId` on the success page!  
+> The webhook from Fiserv may be delayed. This endpoint verifies payment with Fiserv and updates booking status.
 
 ```typescript
 // URL: https://yoursite.com/booking/success?bookingId=BK-20251129-ABC123
@@ -728,18 +838,62 @@ Create a page at your `successUrl` to handle successful payments:
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+interface VerifyResponse {
+  success: boolean;
+  bookingId: string;
+  bookingStatus: string;
+  paymentStatus: string;
+  message: string;
+  verified: boolean;
+}
+
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (bookingId) {
-      fetchBooking(bookingId);
+      // Step 1: Verify and sync payment status first
+      verifyPayment(bookingId);
     }
   }, [bookingId]);
+
+  // IMPORTANT: Call this to ensure payment is synced even if webhook is delayed
+  const verifyPayment = async (id: string) => {
+    try {
+      setVerifying(true);
+      const response = await fetch(`/api/v1/payments/verify/${id}`, {
+        method: 'POST',
+      });
+      
+      const result: VerifyResponse = await response.json();
+      
+      if (!result.success && result.paymentStatus === 'DECLINED') {
+        // Payment was declined - redirect to failure page
+        window.location.href = `/booking/failed?bookingId=${id}`;
+        return;
+      }
+      
+      if (!result.success && result.paymentStatus === 'WAITING') {
+        // Still processing - poll again after delay
+        setTimeout(() => verifyPayment(id), 3000);
+        return;
+      }
+      
+      // Payment verified - now fetch full booking details
+      await fetchBooking(id);
+    } catch (err) {
+      // Verification failed, but still try to fetch booking
+      console.error('Payment verification failed:', err);
+      await fetchBooking(id);
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const fetchBooking = async (id: string) => {
     try {

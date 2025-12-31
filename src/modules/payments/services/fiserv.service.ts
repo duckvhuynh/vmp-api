@@ -366,6 +366,133 @@ export class FiservService {
   }
 
   /**
+   * Verify payment status with Fiserv and sync booking status
+   * Used as fallback when webhook is delayed or fails
+   */
+  async verifyAndSyncPayment(bookingId: string): Promise<{
+    success: boolean;
+    bookingId: string;
+    bookingStatus: string;
+    paymentStatus: string;
+    message: string;
+    verified: boolean;
+  }> {
+    this.logger.log(`Verifying payment for booking ${bookingId}`);
+
+    // Find the booking
+    const booking = await this.findBooking(bookingId);
+
+    // If already confirmed, return success
+    if (booking.status === BookingStatus.CONFIRMED && booking.paymentConfirmedAt) {
+      return {
+        success: true,
+        bookingId: booking.bookingId,
+        bookingStatus: booking.status,
+        paymentStatus: 'APPROVED',
+        message: 'Payment already confirmed',
+        verified: true,
+      };
+    }
+
+    // If no payment intent ID, payment hasn't been initiated
+    if (!booking.paymentIntentId) {
+      return {
+        success: false,
+        bookingId: booking.bookingId,
+        bookingStatus: booking.status,
+        paymentStatus: 'NOT_INITIATED',
+        message: 'Payment has not been initiated for this booking',
+        verified: false,
+      };
+    }
+
+    // Check payment status with Fiserv
+    try {
+      const checkoutDetails = await this.getCheckout(booking.paymentIntentId);
+      
+      this.logger.log(`Fiserv checkout status for ${bookingId}: ${checkoutDetails.transactionStatus}`);
+
+      // If payment is approved but booking not confirmed, update it
+      if (checkoutDetails.transactionStatus === FiservTransactionStatus.APPROVED) {
+        if (booking.status !== BookingStatus.CONFIRMED) {
+          booking.status = BookingStatus.CONFIRMED;
+          booking.paymentConfirmedAt = new Date();
+          booking.updatedAt = new Date();
+          booking.events.push({
+            event: BookingEventName.PAYMENT_SUCCESS,
+            status: BookingStatus.CONFIRMED,
+            timestamp: new Date(),
+            description: `Payment verified and confirmed. Amount: ${checkoutDetails.amount} ${checkoutDetails.currency}`,
+          });
+          await booking.save();
+
+          // Send notifications (async, don't block)
+          this.notificationService.onBookingConfirmed(booking.bookingId).catch((err) => {
+            this.logger.error(`Failed to send confirmation notifications: ${err.message}`);
+          });
+
+          this.logger.log(`Booking ${bookingId} marked as confirmed via manual verification`);
+        }
+
+        return {
+          success: true,
+          bookingId: booking.bookingId,
+          bookingStatus: BookingStatus.CONFIRMED,
+          paymentStatus: 'APPROVED',
+          message: 'Payment verified and booking confirmed',
+          verified: true,
+        };
+      }
+
+      // Payment declined or failed
+      if (checkoutDetails.transactionStatus === FiservTransactionStatus.DECLINED ||
+          checkoutDetails.transactionStatus === FiservTransactionStatus.FAILED) {
+        if (booking.status !== BookingStatus.PAYMENT_FAILED) {
+          booking.status = BookingStatus.PAYMENT_FAILED;
+          booking.updatedAt = new Date();
+          booking.events.push({
+            event: BookingEventName.PAYMENT_FAILED,
+            status: BookingStatus.PAYMENT_FAILED,
+            timestamp: new Date(),
+            description: `Payment ${checkoutDetails.transactionStatus.toLowerCase()}`,
+          });
+          await booking.save();
+        }
+
+        return {
+          success: false,
+          bookingId: booking.bookingId,
+          bookingStatus: BookingStatus.PAYMENT_FAILED,
+          paymentStatus: checkoutDetails.transactionStatus,
+          message: `Payment ${checkoutDetails.transactionStatus.toLowerCase()}`,
+          verified: true,
+        };
+      }
+
+      // Payment still processing
+      return {
+        success: false,
+        bookingId: booking.bookingId,
+        bookingStatus: booking.status,
+        paymentStatus: checkoutDetails.transactionStatus || 'WAITING',
+        message: 'Payment is still being processed. Please wait.',
+        verified: true,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to verify payment with Fiserv: ${error.message}`);
+      
+      return {
+        success: false,
+        bookingId: booking.bookingId,
+        bookingStatus: booking.status,
+        paymentStatus: 'UNKNOWN',
+        message: 'Unable to verify payment status. Please try again or contact support.',
+        verified: false,
+      };
+    }
+  }
+
+  /**
    * Find booking by ID
    */
   private async findBooking(bookingId: string): Promise<SimpleBookingDocument> {
